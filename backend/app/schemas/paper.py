@@ -72,6 +72,9 @@ class PaperPositionResponse(BaseModel):
 
 
 class PaperAccountResponse(BaseModel):
+    id: str = "default_account"
+    name: str = "Primary Portfolio"
+    user_id: str = "default_user"
     initial_balance: float
     cash_balance: float
     invested_value: float
@@ -88,6 +91,25 @@ class PaperAccountResponse(BaseModel):
     open_positions_count: int
     total_fees_paid: float
     last_updated: str
+
+
+class CreateAccountRequest(BaseModel):
+    name: str = Field(min_length=2, max_length=64, description="Portfolio or Account Name")
+    initial_balance: float = Field(default=100000.0, ge=1000.0, le=10000000.0, description="Starting cash balance")
+    currency: str = Field(default="INR", max_length=8)
+
+
+class AccountListItem(BaseModel):
+    id: str
+    name: str
+    user_id: str
+    initial_balance: float
+    cash_balance: float
+    total_equity: float
+    realized_pnl: float
+    open_positions_count: int
+    currency: str = "INR"
+    created_at: str
 
 
 class PaperResetRequest(BaseModel):

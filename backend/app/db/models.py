@@ -22,12 +22,27 @@ def utcnow() -> datetime:
     return datetime.now(timezone.utc)
 
 
+class UserModel(Base):
+    """Registered application user with credential hashes and profile metadata."""
+
+    __tablename__ = "users"
+
+    id = Column(String(64), primary_key=True)
+    email = Column(String(128), unique=True, nullable=False, index=True)
+    username = Column(String(64), unique=True, nullable=False, index=True)
+    full_name = Column(String(128), nullable=False, default="Trader")
+    password_hash = Column(String(256), nullable=False)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=utcnow)
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=utcnow, onupdate=utcnow)
+
+
 class PaperAccountModel(Base):
     """Persistent paper trading portfolio account."""
 
     __tablename__ = "paper_accounts"
 
     id = Column(String(64), primary_key=True, default="default_account")
+    name = Column(String(128), nullable=False, default="Primary Portfolio")
     user_id = Column(String(64), nullable=False, default="default_user", index=True)
     initial_balance = Column(Numeric(14, 2), nullable=False, default=Decimal("100000.00"))
     cash_balance = Column(Numeric(14, 2), nullable=False, default=Decimal("100000.00"))

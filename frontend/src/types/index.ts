@@ -251,6 +251,42 @@ export interface AppSettings {
   defaultSlippagePercent: number;
 }
 
+// --- User Authentication & Account Management ---
+export interface UserProfile {
+  id: string;
+  email: string;
+  username: string;
+  full_name: string;
+  created_at: string;
+}
+
+export interface UserAccountItem {
+  id: string;
+  name: string;
+  user_id: string;
+  initial_balance?: number;
+  cash_balance: number;
+  total_equity: number;
+  realized_pnl: number;
+  open_positions_count?: number;
+  currency: string;
+  created_at: string;
+}
+
+export interface AuthSessionResponse {
+  access_token: string;
+  token_type: string;
+  user: UserProfile;
+  active_account_id: string;
+  accounts: UserAccountItem[];
+}
+
+export interface CreateAccountPayload {
+  name: string;
+  initial_balance: number;
+  currency?: string;
+}
+
 // --- Strategy Doctor Types ---
 export interface StrategyDoctorRequest {
   symbol: string;

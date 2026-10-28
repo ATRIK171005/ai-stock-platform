@@ -22,6 +22,9 @@ class Settings(BaseSettings):
 
     # Security & Rate Limiting
     api_secret_key: Optional[str] = None  # If set, requires auth header on protected endpoints
+    jwt_secret_key: str = "marketiq-jwt-secret-key-change-in-production-random-secure-string"
+    jwt_algorithm: str = "HS256"
+    jwt_expiration_minutes: int = 10080  # 7 days default
     rate_limit_per_minute: int = 120  # General API requests per minute per IP
     max_request_body_size_bytes: int = 1048576  # 1 MB max payload
 

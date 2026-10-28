@@ -121,6 +121,60 @@ class PaperTradingService:
 
         return account
 
+    def create_account(
+        self,
+        db: Session,
+        name: str,
+        initial_balance: float = 100000.0,
+        user_id: str = "default_user",
+    ) -> PaperAccountModel:
+        """Creates a new isolated paper trading portfolio account with an active risk profile."""
+        account_id = f"acc_{uuid.uuid4().hex[:12]}"
+        validate_account_id(account_id)
+        today_str = today_iso()
+
+        account = PaperAccountModel(
+            id=account_id,
+            name=name.strip() or "New Portfolio",
+            user_id=user_id,
+            initial_balance=Decimal(str(initial_balance)),
+            cash_balance=Decimal(str(initial_balance)),
+            realized_pnl=Decimal("0.00"),
+            total_fees_paid=Decimal("0.00"),
+            daily_realized_loss=Decimal("0.00"),
+            daily_loss_date=today_str,
+            currency="INR",
+        )
+        db.add(account)
+        db.commit()
+        db.refresh(account)
+
+        # Initialize default risk profile for the new account
+        from .risk_guardian import risk_guardian_service
+        risk_guardian_service.get_or_create_risk_profile(db=db, account_id=account.id, user_id=user_id)
+
+        logger.info("Created paper trading account '%s' ('%s') for user '%s'", account.id, account.name, user_id)
+        return account
+
+    def get_user_accounts(self, db: Session, user_id: str = "default_user") -> List[PaperAccountModel]:
+        """Lists all persistent paper portfolio accounts belonging to the given user."""
+        accounts = (
+            db.query(PaperAccountModel)
+            .filter(PaperAccountModel.user_id == user_id)
+            .order_by(PaperAccountModel.created_at.asc())
+            .all()
+        )
+        if not accounts:
+            if user_id == "default_user":
+                default_acc = self.get_or_create_account(db, "default_account", "default_user")
+                return [default_acc]
+            else:
+                new_acc = self.create_account(
+                    db, name="Primary Portfolio", initial_balance=settings.paper_initial_capital, user_id=user_id
+                )
+                return [new_acc]
+        return accounts
+
     def get_account_summary(
         self, db: Session, account_id: str = "default_account"
     ) -> PaperAccountResponse:
@@ -158,6 +212,9 @@ class PaperTradingService:
         daily_pnl = total_unrealized_pnl - account.daily_realized_loss
 
         return PaperAccountResponse(
+            id=account.id,
+            name=account.name,
+            user_id=account.user_id,
             initial_balance=float(round(account.initial_balance, 2)),
             cash_balance=float(round(account.cash_balance, 2)),
             invested_value=float(round(invested_value, 2)),

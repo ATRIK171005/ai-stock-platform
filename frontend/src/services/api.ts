@@ -17,7 +17,34 @@ import type {
   RiskProfile,
   PreTradeAssessmentRequest,
   PreTradeAssessmentResponse,
+  UserAccountItem,
+  AuthSessionResponse,
+  CreateAccountPayload,
 } from '../types';
+
+export const getStoredAuthToken = (): string | null => {
+  if (typeof window === 'undefined') return null;
+  return localStorage.getItem('marketiq_auth_token');
+};
+
+export const setStoredAuthToken = (token: string | null) => {
+  if (typeof window === 'undefined') return;
+  if (token) {
+    localStorage.setItem('marketiq_auth_token', token);
+  } else {
+    localStorage.removeItem('marketiq_auth_token');
+  }
+};
+
+export const getStoredAccountId = (): string => {
+  if (typeof window === 'undefined') return 'default_account';
+  return localStorage.getItem('marketiq_active_account_id') || 'default_account';
+};
+
+export const setStoredAccountId = (accountId: string) => {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem('marketiq_active_account_id', accountId);
+};
 
 export const getApiBaseUrl = (): string => {
   if (typeof window !== 'undefined') {
@@ -158,9 +185,25 @@ async function fetchWithTimeout<T>(
 
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
+  const token = getStoredAuthToken();
+  const accountId = getStoredAccountId();
+  const defaultHeaders: Record<string, string> = {};
+  if (token) {
+    defaultHeaders['Authorization'] = `Bearer ${token}`;
+  }
+  if (accountId) {
+    defaultHeaders['X-Account-ID'] = accountId;
+  }
+
+  const mergedHeaders = {
+    ...defaultHeaders,
+    ...((options.headers as Record<string, string>) || {}),
+  };
+
   try {
     const response = await fetch(url, {
       ...options,
+      headers: mergedHeaders,
       signal: controller.signal,
     });
 
@@ -609,6 +652,9 @@ export async function analyzeStockWithAI(
 }
 
 export interface BackendPaperAccountResponse {
+  id?: string;
+  name?: string;
+  user_id?: string | null;
   initial_balance: number;
   cash_balance: number;
   invested_value: number;
@@ -1025,6 +1071,112 @@ export async function runHFTBenchmark(
     25000
   );
 }
+
+// ==========================================
+// Authentication & Multi-Account Management
+// ==========================================
+
+export async function registerUser(req: {
+  email: string;
+  username: string;
+  password: string;
+  full_name?: string;
+}): Promise<AuthSessionResponse> {
+  const data = await fetchWithTimeout<AuthSessionResponse>(
+    `${API_BASE_URL}/api/auth/register`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(req),
+    },
+    15000
+  );
+  setStoredAuthToken(data.access_token);
+  if (data.active_account_id) {
+    setStoredAccountId(data.active_account_id);
+  }
+  return data;
+}
+
+export async function loginUser(req: {
+  username_or_email: string;
+  password: string;
+}): Promise<AuthSessionResponse> {
+  const data = await fetchWithTimeout<AuthSessionResponse>(
+    `${API_BASE_URL}/api/auth/login`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(req),
+    },
+    15000
+  );
+  setStoredAuthToken(data.access_token);
+  if (data.active_account_id) {
+    setStoredAccountId(data.active_account_id);
+  }
+  return data;
+}
+
+export async function loginDemoUser(): Promise<AuthSessionResponse> {
+  const data = await fetchWithTimeout<AuthSessionResponse>(
+    `${API_BASE_URL}/api/auth/demo`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    },
+    15000
+  );
+  setStoredAuthToken(data.access_token);
+  if (data.active_account_id) {
+    setStoredAccountId(data.active_account_id);
+  }
+  return data;
+}
+
+export async function fetchCurrentUser(): Promise<AuthSessionResponse | null> {
+  const token = getStoredAuthToken();
+  if (!token) return null;
+  try {
+    return await fetchWithTimeout<AuthSessionResponse>(
+      `${API_BASE_URL}/api/auth/me`,
+      { method: 'GET' },
+      10000
+    );
+  } catch {
+    return null;
+  }
+}
+
+export async function fetchUserAccounts(): Promise<UserAccountItem[]> {
+  return await fetchWithTimeout<UserAccountItem[]>(
+    `${API_BASE_URL}/api/paper/accounts`,
+    { method: 'GET' },
+    10000
+  );
+}
+
+export async function createNewAccount(req: CreateAccountPayload): Promise<BackendPaperAccountResponse> {
+  const data = await fetchWithTimeout<BackendPaperAccountResponse>(
+    `${API_BASE_URL}/api/paper/accounts`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(req),
+    },
+    15000
+  );
+  if (data.id) {
+    setStoredAccountId(data.id);
+  }
+  return data;
+}
+
+export function logoutUserSession() {
+  setStoredAuthToken(null);
+  setStoredAccountId('default_account');
+}
+
 
 
 

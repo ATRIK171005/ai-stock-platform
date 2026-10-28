@@ -3,6 +3,8 @@ import { Navbar } from './components/Navbar';
 import type { NavTab } from './components/Navbar';
 import { MarketTicker } from './components/MarketTicker';
 import { StockSearchModal } from './components/StockSearchModal';
+import { AuthModal } from './components/AuthModal';
+import { AddAccountModal } from './components/AddAccountModal';
 import { OverviewPage } from './pages/OverviewPage';
 import { AnalysisPage } from './pages/AnalysisPage';
 import { AIAnalystPage } from './pages/AIAnalystPage';
@@ -33,6 +35,9 @@ import type {
   TechnicalIndicators,
   StockQuote,
   OHLCVCandle,
+  UserProfile,
+  UserAccountItem,
+  AuthSessionResponse,
 } from './types';
 import {
   fetchStockHistory,
@@ -47,6 +52,11 @@ import {
   fetchPaperOrders,
   submitPaperOrder,
   resetPaperAccount,
+  fetchCurrentUser,
+  fetchUserAccounts,
+  logoutUserSession,
+  getStoredAccountId,
+  setStoredAccountId,
 } from './services/api';
 import { ShieldAlert, AlertCircle, RefreshCw } from 'lucide-react';
 
@@ -73,6 +83,86 @@ export function App() {
   const [isPaperLoading, setIsPaperLoading] = useState<boolean>(false);
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_APP_SETTINGS);
 
+  // User Authentication & Multi-Account States
+  const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
+  const [isAddAccountModalOpen, setIsAddAccountModalOpen] = useState<boolean>(false);
+  const [activeAccountId, setActiveAccountId] = useState<string>(() => getStoredAccountId());
+  const [userAccounts, setUserAccounts] = useState<UserAccountItem[]>([
+    {
+      id: 'default_account',
+      name: 'Primary Portfolio',
+      user_id: 'default_user',
+      initial_balance: INITIAL_PAPER_ACCOUNT.startingBalance,
+      cash_balance: INITIAL_PAPER_ACCOUNT.cashBalance,
+      total_equity: INITIAL_PAPER_ACCOUNT.totalEquity,
+      realized_pnl: INITIAL_PAPER_ACCOUNT.realizedPnL,
+      open_positions_count: INITIAL_PAPER_POSITIONS.length,
+      currency: 'INR',
+      created_at: new Date().toISOString(),
+    },
+  ]);
+
+  // Session and account initialization
+  useEffect(() => {
+    let isMounted = true;
+    async function initSessionAndAccounts() {
+      try {
+        const session = await fetchCurrentUser();
+        if (isMounted && session) {
+          setCurrentUser(session.user);
+          if (session.accounts && session.accounts.length > 0) {
+            setUserAccounts(session.accounts);
+            if (session.active_account_id) {
+              setActiveAccountId(session.active_account_id);
+              setStoredAccountId(session.active_account_id);
+            }
+          }
+        } else {
+          const accs = await fetchUserAccounts();
+          if (isMounted && accs && accs.length > 0) {
+            setUserAccounts(accs);
+          }
+        }
+      } catch {
+        // Fallback gracefully
+      }
+    }
+    initSessionAndAccounts();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const handleSelectAccount = useCallback((accId: string) => {
+    setActiveAccountId(accId);
+    setStoredAccountId(accId);
+  }, []);
+
+  const handleAuthSuccess = (authData: AuthSessionResponse) => {
+    setCurrentUser(authData.user);
+    if (authData.accounts && authData.accounts.length > 0) {
+      setUserAccounts(authData.accounts);
+      if (authData.active_account_id) {
+        setActiveAccountId(authData.active_account_id);
+        setStoredAccountId(authData.active_account_id);
+      }
+    }
+  };
+
+  const handleLogout = () => {
+    logoutUserSession();
+    setCurrentUser(null);
+    setActiveAccountId('default_account');
+    setStoredAccountId('default_account');
+  };
+
+  const handleAddAccountSuccess = (newAcc: UserAccountItem) => {
+    setUserAccounts((prev) => [...prev, newAcc]);
+    setActiveAccountId(newAcc.id);
+    setStoredAccountId(newAcc.id);
+  };
+
   // Sync Paper Trading Data from FastAPI Backend
   const refreshPaperData = useCallback(async () => {
     setIsPaperLoading(true);
@@ -91,6 +181,10 @@ export function App() {
       setIsPaperLoading(false);
     }
   }, []);
+
+  useEffect(() => {
+    refreshPaperData();
+  }, [activeAccountId, refreshPaperData]);
 
   // Live Data States
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -387,6 +481,13 @@ export function App() {
         onSelectSymbol={(sym) => handleSelectSymbol(sym)}
         cashBalance={paperAccount.cashBalance}
         onOpenSearch={() => setIsSearchOpen(true)}
+        currentUser={currentUser}
+        accounts={userAccounts}
+        activeAccountId={activeAccountId}
+        onSelectAccount={handleSelectAccount}
+        onOpenAddAccount={() => setIsAddAccountModalOpen(true)}
+        onOpenAuth={() => setIsAuthModalOpen(true)}
+        onLogout={handleLogout}
       />
 
       {/* Real-time Market Indices Ticker Bar */}
@@ -516,6 +617,20 @@ export function App() {
         onClose={() => setIsSearchOpen(false)}
         onSelectSymbol={(sym, name) => handleSelectSymbol(sym, name)}
         currentSymbol={selectedSymbol}
+      />
+
+      {/* User Login & Registration Modal */}
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        onSuccess={handleAuthSuccess}
+      />
+
+      {/* Add New Trading Portfolio Modal */}
+      <AddAccountModal
+        isOpen={isAddAccountModalOpen}
+        onClose={() => setIsAddAccountModalOpen(false)}
+        onSuccess={handleAddAccountSuccess}
       />
 
       {/* Mandatory Statutory Risk Footer */}

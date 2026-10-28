@@ -120,6 +120,24 @@ class InvalidInputError(MarketPlatformError):
         super().__init__(message, error_code="INVALID_INPUT", status_code=400)
 
 
+class AuthenticationError(MarketPlatformError):
+    """Raised when authentication credentials or token are invalid."""
+    def __init__(self, message: str = "Invalid credentials or expired session."):
+        super().__init__(message, error_code="AUTHENTICATION_FAILED", status_code=401)
+
+
+class UserAlreadyExistsError(MarketPlatformError):
+    """Raised when registration username or email is already taken."""
+    def __init__(self, message: str = "Username or email is already registered."):
+        super().__init__(message, error_code="USER_ALREADY_EXISTS", status_code=409)
+
+
+class UserNotFoundError(MarketPlatformError):
+    """Raised when user account is not found."""
+    def __init__(self, message: str = "User account not found."):
+        super().__init__(message, error_code="USER_NOT_FOUND", status_code=404)
+
+
 
 
 

@@ -5,9 +5,13 @@ from fastapi import APIRouter, Depends, Header, Query
 from sqlalchemy.orm import Session
 
 from ...config import settings
+from ...core.auth import get_current_user_optional
 from ...core.exceptions import UnauthorizedAccountError
+from ...db.models import UserModel
 from ...db.session import get_db
 from ...schemas.paper import (
+    AccountListItem,
+    CreateAccountRequest,
     PaperAccountResponse,
     PaperOrderCreateRequest,
     PaperOrderResponse,
@@ -97,3 +101,48 @@ def reset_paper_account(
         confirm=req.confirm,
         initial_balance=req.initial_balance or 100000.0,
     )
+
+
+@router.get("/accounts", response_model=List[AccountListItem])
+def list_paper_accounts(
+    user: Optional[UserModel] = Depends(get_current_user_optional),
+    db: Session = Depends(get_db),
+) -> List[AccountListItem]:
+    """Lists all paper trading portfolio accounts belonging to the current user (or default user)."""
+    user_id = user.id if user else "default_user"
+    accounts = default_paper_service.get_user_accounts(db=db, user_id=user_id)
+    items = []
+    for acc in accounts:
+        summary = default_paper_service.get_account_summary(db=db, account_id=acc.id)
+        items.append(
+            AccountListItem(
+                id=acc.id,
+                name=acc.name,
+                user_id=acc.user_id,
+                initial_balance=summary.initial_balance,
+                cash_balance=summary.cash_balance,
+                total_equity=summary.total_equity,
+                realized_pnl=summary.realized_pnl,
+                open_positions_count=summary.open_positions_count,
+                currency=acc.currency,
+                created_at=acc.created_at.isoformat() if acc.created_at else "",
+            )
+        )
+    return items
+
+
+@router.post("/accounts", response_model=PaperAccountResponse)
+def create_paper_account(
+    req: CreateAccountRequest,
+    user: Optional[UserModel] = Depends(get_current_user_optional),
+    db: Session = Depends(get_db),
+) -> PaperAccountResponse:
+    """Creates a new isolated paper trading portfolio account for the current user."""
+    user_id = user.id if user else "default_user"
+    new_acc = default_paper_service.create_account(
+        db=db,
+        name=req.name,
+        initial_balance=req.initial_balance,
+        user_id=user_id,
+    )
+    return default_paper_service.get_account_summary(db=db, account_id=new_acc.id)
