@@ -12,6 +12,7 @@ from typing import Dict, List
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from starlette.middleware.gzip import GZipMiddleware
 
 from .api.routes.health import router as health_router
 from .api.routes.stocks import router as stocks_router
@@ -21,6 +22,7 @@ from .api.routes.ai import router as ai_router
 from .api.routes.paper import router as paper_router
 from .api.routes.strategy_doctor import router as strategy_doctor_router
 from .api.routes.risk import router as risk_router
+from .api.routes.hft import router as hft_router
 from .config import settings
 from .core.exceptions import MarketPlatformError
 from .db import models as _db_models
@@ -86,6 +88,7 @@ app.add_middleware(
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
+app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 
 # Security & Rate Limiting Middleware
@@ -163,6 +166,7 @@ app.include_router(ai_router, prefix="/api")
 app.include_router(paper_router, prefix="/api")
 app.include_router(strategy_doctor_router, prefix="/api")
 app.include_router(risk_router, prefix="/api")
+app.include_router(hft_router, prefix="/api")
 
 
 @app.get("/")

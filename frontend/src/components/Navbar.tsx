@@ -9,10 +9,11 @@ import {
   Search,
   IndianRupee,
   Stethoscope,
+  Zap,
 } from 'lucide-react';
 import { SAMPLE_STOCKS } from '../data/sampleData';
 
-export type NavTab = 'overview' | 'analysis' | 'ai' | 'backtest' | 'doctor' | 'paper' | 'settings';
+export type NavTab = 'overview' | 'analysis' | 'ai' | 'backtest' | 'doctor' | 'paper' | 'hft' | 'settings';
 
 interface NavbarProps {
   activeTab: NavTab;
@@ -38,6 +39,7 @@ export const Navbar: React.FC<NavbarProps> = ({
     { id: 'backtest' as NavTab, label: 'Backtest', icon: History },
     { id: 'doctor' as NavTab, label: 'Strategy Doctor', icon: Stethoscope },
     { id: 'paper' as NavTab, label: 'Paper Trading', icon: Wallet },
+    { id: 'hft' as NavTab, label: 'HFT Simulation', icon: Zap },
     { id: 'settings' as NavTab, label: 'Settings', icon: Settings },
   ];
 

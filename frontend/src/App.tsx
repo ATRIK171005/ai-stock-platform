@@ -9,6 +9,7 @@ import { AIAnalystPage } from './pages/AIAnalystPage';
 import { BacktestPage } from './pages/BacktestPage';
 import { StrategyDoctorPage } from './pages/StrategyDoctorPage';
 import { PaperTradingPage } from './pages/PaperTradingPage';
+import { HFTResearchPage } from './pages/HFTResearchPage';
 import { SettingsPage } from './pages/SettingsPage';
 import {
   SAMPLE_INDICES,
@@ -501,6 +502,8 @@ export function App() {
             onRefresh={refreshPaperData}
           />
         )}
+
+        {activeTab === 'hft' && <HFTResearchPage />}
 
         {activeTab === 'settings' && (
           <SettingsPage settings={settings} onSaveSettings={setSettings} />

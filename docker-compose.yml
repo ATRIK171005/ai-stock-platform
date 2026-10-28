@@ -30,9 +30,12 @@ services:
       PORT: 8000
       HOST: 0.0.0.0
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgrespassword}@postgres:5432/${POSTGRES_DB:-marketiq_db}
-      CORS_ORIGINS: http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173
+      CORS_ORIGINS: http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173,http://localhost,http://127.0.0.1
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.5-flash}
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      GROQ_MODEL: ${GROQ_MODEL:-llama-3.3-70b-versatile}
+      AI_PROVIDER: ${AI_PROVIDER:-AUTO}
       DATA_PROVIDER: YAHOO_FINANCE
       DEFAULT_EXCHANGE: NSE
     ports:
@@ -40,6 +43,17 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: marketiq_frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
 
 volumes:
   pgdata:

@@ -918,6 +918,114 @@ export async function assessPreTradeRisk(
   );
 }
 
+// ==========================================
+// HFT Simulation & Microstructure APIs
+// ==========================================
+
+export async function fetchHFTHealth(signal?: AbortSignal): Promise<{
+  status: string;
+  engine: string;
+  replay_mode: string;
+  datasets_available: number;
+  timer_resolution: string;
+  disclaimer: string;
+}> {
+  return await fetchWithTimeout(
+    `${API_BASE_URL}/api/hft/health`,
+    { method: 'GET', signal },
+    8000
+  );
+}
+
+export async function fetchHFTDatasets(signal?: AbortSignal): Promise<Array<{
+  id: string;
+  name: string;
+  symbol: string;
+  description: string;
+  source_type: string;
+  source_label: string;
+  total_events: number;
+  duration_str: string;
+  tick_size: number;
+  start_timestamp_ns: number;
+  end_timestamp_ns: number;
+  disclaimer: string;
+}>> {
+  return await fetchWithTimeout(
+    `${API_BASE_URL}/api/hft/datasets`,
+    { method: 'GET', signal },
+    10000
+  );
+}
+
+export async function fetchHFTDatasetPreview(
+  datasetId: string,
+  offset = 0,
+  limit = 40,
+  signal?: AbortSignal
+): Promise<any[]> {
+  return await fetchWithTimeout(
+    `${API_BASE_URL}/api/hft/datasets/${encodeURIComponent(datasetId)}/preview?offset=${offset}&limit=${limit}`,
+    { method: 'GET', signal },
+    15000
+  );
+}
+
+export async function validateHFTDataset(
+  datasetId: string,
+  signal?: AbortSignal
+): Promise<{
+  dataset_id: string;
+  is_valid: boolean;
+  total_events_checked: number;
+  sequence_gaps_count: number;
+  out_of_order_timestamps_count: number;
+  duplicate_events_count: number;
+  crossed_books_count: number;
+  min_timestamp_ns: number;
+  max_timestamp_ns: number;
+  integrity_summary: string;
+  anomalies: string[];
+}> {
+  return await fetchWithTimeout(
+    `${API_BASE_URL}/api/hft/datasets/${encodeURIComponent(datasetId)}/validate`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      signal,
+    },
+    20000
+  );
+}
+
+export async function runHFTBenchmark(
+  datasetId = 'synthetic-stress-100k',
+  maxEvents = 2000,
+  signal?: AbortSignal
+): Promise<{
+  dataset_id: string;
+  events_processed: number;
+  duration_seconds: number;
+  throughput_events_per_sec: number;
+  median_latency_us: number;
+  p95_latency_us: number;
+  p99_latency_us: number;
+  max_latency_us: number;
+  clock_type: string;
+}> {
+  return await fetchWithTimeout(
+    `${API_BASE_URL}/api/hft/benchmark`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ dataset_id: datasetId, max_events: maxEvents }),
+      signal,
+    },
+    25000
+  );
+}
+
+
 
 
 

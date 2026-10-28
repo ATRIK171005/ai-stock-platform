@@ -690,3 +690,257 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   defaultBrokeragePercent: 0.05,
   defaultSlippagePercent: 0.02,
 };
+
+// ==========================================
+// HFT Simulation Datasets and L2 Sample Feed
+// ==========================================
+
+import type {
+  HFTDatasetInfo,
+  L2OrderBookSnapshot,
+  HFTOrderRecord,
+  HFTAuditLog,
+  HFTSimulationMetrics,
+  HFTStrategyConfig,
+} from '../types';
+
+export const SAMPLE_HFT_DATASETS: HFTDatasetInfo[] = [
+  {
+    id: 'nse-reliance-l2',
+    name: 'RELIANCE.NS L2 Depth Snapshot Replay (Recorded Market Session)',
+    symbol: 'RELIANCE.NS',
+    description: 'High-density 10-level order-book snapshot stream recorded during an active NSE trading window. Real tick size ₹0.05.',
+    type: 'REAL_RECORDED',
+    totalEvents: 1200,
+    duration: '12m 30s',
+    source: 'NSE Level-2 Market Feed Replay (Recorded Session)',
+    tickSize: 0.05,
+    disclaimer: 'Chronological replay of recorded market depth. Events are processed sequentially without look-ahead bias.',
+  },
+  {
+    id: 'nse-tcs-imbalance',
+    name: 'TCS.NS High-Frequency Book Imbalance & Momentum Stream',
+    symbol: 'TCS.NS',
+    description: 'Microstructure dataset featuring localized order queue exhaustion, aggressive taker sweeps, and spread expansion.',
+    type: 'REAL_RECORDED',
+    totalEvents: 850,
+    duration: '8m 45s',
+    source: 'NSE Order Queue Event Log',
+    tickSize: 0.05,
+    disclaimer: 'Captures order-book imbalance transitions suitable for testing adverse selection and queue priority assumptions.',
+  },
+  {
+    id: 'synthetic-stress-100k',
+    name: 'Synthetic Microstructure Stress Engine (100k events/sec)',
+    symbol: 'NIFTY-SYNTH',
+    description: 'Algorithmic high-throughput synthetic stream designed to stress-test local event dispatcher and queue matching performance.',
+    type: 'SYNTHETIC_L2',
+    totalEvents: 5000,
+    duration: 'Synthetic Continuous',
+    source: 'Simulated Geometric Jump-Diffusion LOB Generator',
+    tickSize: 0.05,
+    disclaimer: 'Purely synthetic demonstration dataset. Explicitly labelled for latency and throughput profiling only.',
+  },
+];
+
+export const DEFAULT_HFT_CONFIG: HFTStrategyConfig = {
+  strategyType: 'ORDER_BOOK_IMBALANCE',
+  symbol: 'RELIANCE.NS',
+  depthLevels: 5,
+  imbalanceThreshold: 0.25,
+  orderQuantity: 25,
+  maxInventory: 100,
+  targetSpreadTicks: 2,
+  simulatedWireLatencyMs: 0.5,
+  enableAdverseSelection: true,
+  brokerageFeeBps: 0.03,
+  slippageModel: 'QUEUE_DEPENDENT',
+};
+
+export const INITIAL_HFT_METRICS: HFTSimulationMetrics = {
+  grossPnl: 0.0,
+  netPnl: 0.0,
+  totalFees: 0.0,
+  totalSlippage: 0.0,
+  inventory: 0,
+  maxInventory: 100,
+  inventoryTurnover: 0,
+  ordersSubmitted: 0,
+  ordersFilled: 0,
+  ordersCancelled: 0,
+  fillRatePct: 0.0,
+  medianLatencyUs: 14.2,
+  p95LatencyUs: 28.6,
+  p99LatencyUs: 45.1,
+  maxLatencyUs: 89.4,
+  maxDrawdownPct: 0.0,
+  winRatePct: 0.0,
+  sharpeRatioEstimate: 0.0,
+};
+
+export function generateL2SnapshotSequence(basePrice = 1180.50, steps = 30): L2OrderBookSnapshot[] {
+  const snapshots: L2OrderBookSnapshot[] = [];
+  let currentMid = basePrice;
+  const tick = 0.05;
+
+  for (let s = 0; s < steps; s++) {
+    // Random micro-walk
+    const delta = (Math.random() - 0.49) * 0.15;
+    currentMid = Math.round((currentMid + delta) / tick) * tick;
+    const halfSpread = tick * (Math.random() > 0.7 ? 2 : 1);
+    const bestBid = Math.round((currentMid - halfSpread) / tick) * tick;
+    const bestAsk = Math.round((currentMid + halfSpread) / tick) * tick;
+    const spread = Math.round((bestAsk - bestBid) * 100) / 100;
+
+    const bids = [];
+    const asks = [];
+    let cumBidDepth = 0;
+    let cumAskDepth = 0;
+
+    // Generate 10 levels of bids and asks
+    for (let i = 0; i < 10; i++) {
+      const bPrice = Math.round((bestBid - i * tick) * 100) / 100;
+      const bQty = Math.floor(150 + Math.random() * 850 + (10 - i) * 80);
+      cumBidDepth += bQty;
+      bids.push({
+        price: bPrice,
+        quantity: bQty,
+        orderCount: Math.floor(bQty / 65) + 1,
+        depthTotal: cumBidDepth,
+      });
+
+      const aPrice = Math.round((bestAsk + i * tick) * 100) / 100;
+      const aQty = Math.floor(140 + Math.random() * 880 + (10 - i) * 75);
+      cumAskDepth += aQty;
+      asks.push({
+        price: aPrice,
+        quantity: aQty,
+        orderCount: Math.floor(aQty / 65) + 1,
+        depthTotal: cumAskDepth,
+      });
+    }
+
+    // Top-5 level imbalance calculation
+    const top5BidVol = bids.slice(0, 5).reduce((acc, b) => acc + b.quantity, 0);
+    const top5AskVol = asks.slice(0, 5).reduce((acc, a) => acc + a.quantity, 0);
+    const imbalance = (top5BidVol - top5AskVol) / (top5BidVol + top5AskVol);
+
+    // Microprice calculation: (V_bid * P_ask + V_ask * P_bid) / (V_bid + V_ask)
+    const microPrice = (top5BidVol * bestAsk + top5AskVol * bestBid) / (top5BidVol + top5AskVol);
+
+    const timeObj = new Date(Date.now() - (steps - s) * 250);
+    const timeStr = timeObj.toISOString().slice(11, 23); // HH:mm:ss.SSS
+
+    snapshots.push({
+      symbol: 'RELIANCE.NS',
+      timestamp: timeStr,
+      sequenceNumber: 1045000 + s * 14,
+      bids,
+      asks,
+      bestBid,
+      bestAsk,
+      spread,
+      midPrice: Math.round(((bestBid + bestAsk) / 2) * 100) / 100,
+      microPrice: Math.round(microPrice * 100) / 100,
+      imbalance: Math.round(imbalance * 1000) / 1000,
+      totalBidDepth: cumBidDepth,
+      totalAskDepth: cumAskDepth,
+    });
+  }
+
+  return snapshots;
+}
+
+export const SAMPLE_HFT_ORDERS: HFTOrderRecord[] = [
+  {
+    orderId: 'hft-ord-101',
+    clientOrderId: 'strat-obi-001',
+    symbol: 'RELIANCE.NS',
+    side: 'BUY',
+    type: 'LIMIT',
+    price: 1180.45,
+    quantity: 25,
+    filledQuantity: 25,
+    averageFillPrice: 1180.45,
+    status: 'FILLED',
+    submissionTimestamp: '09:45:12.104',
+    executionTimestamp: '09:45:12.312',
+    slippageBps: 0.0,
+    fee: 8.85,
+    reason: 'Imbalance > +0.30 signal on Level-5 book',
+  },
+  {
+    orderId: 'hft-ord-102',
+    clientOrderId: 'strat-obi-002',
+    symbol: 'RELIANCE.NS',
+    side: 'SELL',
+    type: 'LIMIT',
+    price: 1180.60,
+    quantity: 25,
+    filledQuantity: 25,
+    averageFillPrice: 1180.60,
+    status: 'FILLED',
+    submissionTimestamp: '09:45:14.220',
+    executionTimestamp: '09:45:14.480',
+    slippageBps: 0.0,
+    fee: 8.85,
+    reason: 'Inventory unwind at target spread (+₹0.15 gross edge)',
+  },
+  {
+    orderId: 'hft-ord-103',
+    clientOrderId: 'strat-obi-003',
+    symbol: 'RELIANCE.NS',
+    side: 'BUY',
+    type: 'LIMIT',
+    price: 1180.40,
+    quantity: 25,
+    filledQuantity: 0,
+    averageFillPrice: 0.0,
+    status: 'CANCELLED',
+    submissionTimestamp: '09:45:16.510',
+    executionTimestamp: '09:45:16.890',
+    slippageBps: 0.0,
+    fee: 0.0,
+    reason: 'Order cancelled: Queue position aged > 300ms without fill',
+  },
+];
+
+export const SAMPLE_HFT_LOGS: HFTAuditLog[] = [
+  {
+    timestamp: '09:45:12.104',
+    level: 'INFO',
+    message: 'Engine initialized: Chronological event replay loaded 1,200 L2 events.',
+    details: 'Provider: NSE Level-2 Market Feed Replay (Recorded Session)',
+  },
+  {
+    timestamp: '09:45:12.105',
+    level: 'ORDER',
+    message: 'Submitted passive BUY limit: 25 shares @ ₹1,180.45',
+    details: 'Signal: OBI = +0.38 (Bid heavy) | Microprice = ₹1,180.52',
+  },
+  {
+    timestamp: '09:45:12.312',
+    level: 'EXEC',
+    message: 'Order hft-ord-101 filled: 25 shares @ ₹1,180.45 (Zero slippage)',
+    details: 'Queue latency: 208ms | Brokerage: ₹8.85 | Inventory: +25',
+  },
+  {
+    timestamp: '09:45:14.220',
+    level: 'ORDER',
+    message: 'Submitted passive SELL quote: 25 shares @ ₹1,180.60',
+    details: 'Spread capture target: 3 ticks (₹0.15 gross profit)',
+  },
+  {
+    timestamp: '09:45:14.480',
+    level: 'EXEC',
+    message: 'Order hft-ord-102 filled: 25 shares @ ₹1,180.60. Round-trip Net P&L: +₹2.05',
+    details: 'Gross: +₹3.75, Fees: -₹1.70, Net: +₹2.05. Current inventory: 0.',
+  },
+  {
+    timestamp: '09:45:16.510',
+    level: 'RISK',
+    message: 'Inventory limit check passed. Maximum position: 25/100 shares.',
+    details: 'Daily realized P&L: +₹2.05 | Loss threshold: -₹5,000.00',
+  },
+];
+

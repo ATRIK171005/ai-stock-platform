@@ -432,3 +432,186 @@ export interface PreTradeAssessmentResponse {
   assessment_timestamp: string;
 }
 
+// ==========================================
+// High-Frequency Trading (HFT) Simulation Types
+// ==========================================
+
+export interface L2OrderBookLevel {
+  price: number;
+  quantity: number;
+  orderCount?: number;
+  depthTotal?: number;
+}
+
+export interface L2OrderBookSnapshot {
+  symbol: string;
+  timestamp: string;
+  sequenceNumber: number;
+  exchangeTimestampNs?: number;
+  localReceiveTimestampNs?: number;
+  bids: L2OrderBookLevel[];
+  asks: L2OrderBookLevel[];
+  bestBid: number;
+  bestAsk: number;
+  spread: number;
+  spreadTicks?: number;
+  midPrice: number;
+  microPrice: number;
+  imbalance: number; // -1.0 (heavy ask) to +1.0 (heavy bid)
+  totalBidDepth: number;
+  totalAskDepth: number;
+}
+
+export type HFTMarketEventType = 'SNAPSHOT' | 'BOOK_UPDATE' | 'TRADE';
+
+export interface HFTMarketEvent {
+  eventId: string;
+  sequenceNumber: number;
+  timestamp: string;
+  type: HFTMarketEventType;
+  symbol: string;
+  price?: number;
+  quantity?: number;
+  side?: 'BUY' | 'SELL';
+  bookSnapshot?: L2OrderBookSnapshot;
+}
+
+export type HFTStrategyType = 'ORDER_BOOK_IMBALANCE' | 'AVALLANEDA_STOIKOV' | 'EXECUTION_COST';
+
+export interface HFTStrategyConfig {
+  strategyType: HFTStrategyType;
+  symbol: string;
+  depthLevels: number; // Levels of book considered (e.g. 5 or 10)
+  imbalanceThreshold: number; // e.g. 0.25 (-1 to +1)
+  orderQuantity: number; // Lot size per passive/aggressive order
+  maxInventory: number; // Max position cap (e.g. 100 shares)
+  targetSpreadTicks: number; // Quoting spread in ticks (e.g. 2 ticks = ₹0.10)
+  simulatedWireLatencyMs: number; // Network wire delay assumption (e.g. 0.5 ms)
+  enableAdverseSelection: boolean; // Simulate unfavorable fills when book moves
+  brokerageFeeBps: number; // Exchange & broker cost (e.g. 0.03%)
+  slippageModel: 'ZERO' | 'LINEAR' | 'QUEUE_DEPENDENT';
+}
+
+export type HFTSimulationStatus = 'IDLE' | 'RUNNING' | 'PAUSED' | 'COMPLETED';
+
+export interface HFTSimulationState {
+  status: HFTSimulationStatus;
+  eventsProcessed: number;
+  currentEventIndex: number;
+  totalEvents: number;
+  throughputEps: number; // Real local Python events processed per second
+  speedMultiplier: number; // 0.5x, 1x, 5x, 10x, 'MAX'
+  datasetId: string;
+  elapsedMs: number;
+}
+
+export interface HFTSimulationMetrics {
+  grossPnl: number;
+  netPnl: number;
+  totalFees: number;
+  totalSlippage: number;
+  inventory: number;
+  maxInventory: number;
+  inventoryTurnover: number;
+  ordersSubmitted: number;
+  ordersFilled: number;
+  ordersCancelled: number;
+  fillRatePct: number;
+  medianLatencyUs: number; // Local engine processing latency
+  p95LatencyUs: number;
+  p99LatencyUs: number;
+  maxLatencyUs: number;
+  maxDrawdownPct: number;
+  winRatePct: number;
+  sharpeRatioEstimate: number;
+}
+
+export interface HFTOrderRecord {
+  orderId: string;
+  clientOrderId: string;
+  symbol: string;
+  side: 'BUY' | 'SELL';
+  type: 'LIMIT' | 'MARKET';
+  price: number;
+  quantity: number;
+  filledQuantity: number;
+  averageFillPrice: number;
+  status: 'PENDING' | 'NEW' | 'PARTIALLY_FILLED' | 'FILLED' | 'CANCELLED' | 'REJECTED';
+  submissionTimestamp: string;
+  executionTimestamp?: string;
+  slippageBps: number;
+  fee: number;
+  reason?: string;
+}
+
+export interface HFTAuditLog {
+  timestamp: string;
+  level: 'INFO' | 'WARN' | 'EXEC' | 'RISK' | 'ORDER';
+  message: string;
+  details?: string;
+}
+
+export interface HFTDatasetInfo {
+  id: string;
+  name: string;
+  symbol: string;
+  description: string;
+  type: 'REAL_RECORDED' | 'SYNTHETIC_L2' | 'STRESS_TEST';
+  totalEvents: number;
+  duration: string;
+  source: string;
+  tickSize: number;
+  disclaimer: string;
+}
+
+export interface HFTDatasetMetadataResponse {
+  id: string;
+  name: string;
+  symbol: string;
+  description: string;
+  source_type: string;
+  source_label: string;
+  total_events: number;
+  duration_str: string;
+  tick_size: number;
+  start_timestamp_ns: number;
+  end_timestamp_ns: number;
+  disclaimer: string;
+}
+
+export interface HFTValidationResponse {
+  dataset_id: string;
+  is_valid: boolean;
+  total_events_checked: number;
+  sequence_gaps_count: number;
+  out_of_order_timestamps_count: number;
+  duplicate_events_count: number;
+  crossed_books_count: number;
+  min_timestamp_ns: number;
+  max_timestamp_ns: number;
+  integrity_summary: string;
+  anomalies: string[];
+}
+
+export interface HFTBenchmarkResponse {
+  dataset_id: string;
+  events_processed: number;
+  duration_seconds: number;
+  throughput_events_per_sec: number;
+  median_latency_us: number;
+  p95_latency_us: number;
+  p99_latency_us: number;
+  max_latency_us: number;
+  clock_type: string;
+}
+
+export interface HFTHealthResponse {
+  status: string;
+  engine: string;
+  replay_mode: string;
+  datasets_available: number;
+  timer_resolution: string;
+  disclaimer: string;
+}
+
+
