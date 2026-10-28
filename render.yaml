@@ -1,0 +1,48 @@
+services:
+  # FastAPI Backend Web Service
+  - type: web
+    name: marketiq-backend
+    runtime: python
+    region: oregon
+    plan: free
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: python -m uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/health/ready
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: CORS_ORIGINS
+        value: "*"
+      - key: DATA_PROVIDER
+        value: YAHOO_FINANCE
+      - key: DEFAULT_EXCHANGE
+        value: NSE
+      - key: AI_PROVIDER
+        value: AUTO
+      - key: GROQ_MODEL
+        value: openai/gpt-oss-120b
+      - key: GROQ_API_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+
+  # React Vite Frontend Static Site
+  - type: web
+    name: marketiq-frontend
+    runtime: static
+    region: oregon
+    plan: free
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_API_BASE_URL
+        fromService:
+          type: web
+          name: marketiq-backend
+          property: url

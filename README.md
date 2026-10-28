@@ -394,5 +394,75 @@ To ensure security and prevent client-side bypass:
 
 ---
 
+## Production Deployment Guide
+
+MarketIQ is engineered to deploy across multiple production environments with zero code changes:
+
+### Option 1: Docker Compose (Full-Stack Containerized)
+Deploy PostgreSQL, FastAPI backend, and Nginx-powered React frontend with a single command:
+```bash
+# 1. Clone repository
+git clone <repo-url>
+cd ai-stock-platform
+
+# 2. Configure environment variables
+cp .env.example .env
+# Edit .env and supply your GROQ_API_KEY or GEMINI_API_KEY
+
+# 3. Build and run containers
+docker compose up --build -d
+```
+- Frontend will be live at: `http://localhost` (Port 80)
+- Backend API will be live at: `http://localhost:8000`
+- PostgreSQL database persists in Docker volume `pgdata`.
+
+---
+
+### Option 2: Render.com (1-Click Blueprint)
+The project includes a root [`render.yaml`](render.yaml) configuration:
+1. Push your repository to GitHub or GitLab.
+2. In the Render Dashboard, select **New + &rarr; Blueprint**.
+3. Select this repository.
+4. Render automatically provisions:
+   - `marketiq-backend`: Python 3.11 web service running `uvicorn app.main:app --port $PORT`.
+   - `marketiq-frontend`: Static site serving the Vite production bundle, automatically linked to the backend via `VITE_API_BASE_URL`.
+5. Enter your `GROQ_API_KEY` or `GEMINI_API_KEY` under Environment variables and click **Apply**.
+
+---
+
+### Option 3: Vercel (Frontend) + Render / Railway (Backend)
+- **Frontend (Vercel):**
+  - Import the repository in Vercel. Set **Root Directory** to `frontend`.
+  - Add Environment Variable: `VITE_API_BASE_URL=https://your-backend-app.onrender.com`
+  - Vercel automatically detects the [`vercel.json`](frontend/vercel.json) configuration with security headers and SPA routing.
+- **Backend (Render / Railway / Koyeb):**
+  - Set Root Directory to `backend`.
+  - Build command: `pip install -r requirements.txt`
+  - Start command: `python -m uvicorn app.main:app --host 0.0.0.0 --port $PORT`
+  - Set `CORS_ORIGINS=https://your-vercel-domain.vercel.app`.
+
+---
+
+### Option 4: Linux VPS / Bare Metal (systemd + Nginx)
+```bash
+# Backend systemd service
+sudo nano /etc/systemd/system/marketiq-backend.service
+[Unit]
+Description=MarketIQ FastAPI Backend
+After=network.target
+
+[Service]
+User=www-data
+WorkingDirectory=/var/www/ai-stock-platform/backend
+ExecStart=/var/www/ai-stock-platform/backend/venv/bin/python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+```
+Serve frontend static build `/var/www/ai-stock-platform/frontend/dist` with Nginx using the included [`frontend/nginx.conf`](frontend/nginx.conf).
+
+---
+
 ## Statutory Disclaimer
 *MarketIQ is developed strictly for simulation, quantitative analysis, and educational research. It does not execute real-money trades and is not registered with SEBI as an investment advisor. Past backtested performance is no guarantee of future market returns.*
