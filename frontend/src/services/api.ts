@@ -20,20 +20,21 @@ import type {
 } from '../types';
 
 export const getApiBaseUrl = (): string => {
-  const configuredUrl = import.meta.env.VITE_API_BASE_URL;
-
   if (typeof window !== 'undefined') {
-    // If the page is served over HTTPS (e.g. Cloudflare tunnel), any 'http://' target
-    // will be blocked by modern browsers as Mixed Content (Failed to fetch).
-    // In that case, use relative path '' unless a secure https:// target is provided.
-    if (window.location.protocol === 'https:') {
-      if (configuredUrl && configuredUrl.startsWith('https://')) {
-        return configuredUrl;
-      }
-      return '';
+    // In any browser context, use relative '' so all requests are same-origin /api/...
+    // - On Vite dev server: Vite's proxy forwards /api to http://127.0.0.1:8000
+    // - On Cloudflare tunnel: tunnel routes /api through Vite proxy to backend
+    // - In production/Docker: Nginx routes /api to backend:8000
+    // This completely eliminates CORS preflight errors, Private Network Access blocks,
+    // and HTTPS mixed content failures.
+    const configuredUrl = import.meta.env.VITE_API_BASE_URL;
+    if (configuredUrl && configuredUrl.startsWith('https://')) {
+      return configuredUrl;
     }
+    return '';
   }
 
+  const configuredUrl = import.meta.env.VITE_API_BASE_URL;
   if (configuredUrl) {
     return configuredUrl;
   }

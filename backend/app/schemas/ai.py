@@ -1,7 +1,7 @@
 """Pydantic schemas for Google Gemini AI Market Analyst."""
 from enum import Enum
 from typing import Any, Dict, List, Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class ChatSender(str, Enum):
@@ -32,6 +32,14 @@ class AIAnalysisRequest(BaseModel):
         default=None,
         description="Recent conversation history for conversational context (max 10 turns)",
     )
+
+    @model_validator(mode="before")
+    @classmethod
+    def allow_query_alias(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            if "question" not in data and "query" in data:
+                data["question"] = data["query"]
+        return data
 
 
 class StructuredAIAnalysis(BaseModel):
