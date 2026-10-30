@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef, lazy, Suspense } from 'react';
 import { Navbar } from './components/Navbar';
 import type { NavTab } from './components/Navbar';
 import { MarketTicker } from './components/MarketTicker';
@@ -8,12 +8,21 @@ import { AddAccountModal } from './components/AddAccountModal';
 import { LoginPage } from './components/LoginPage';
 import { OverviewPage } from './pages/OverviewPage';
 import { AnalysisPage } from './pages/AnalysisPage';
-import { AIAnalystPage } from './pages/AIAnalystPage';
-import { BacktestPage } from './pages/BacktestPage';
-import { StrategyDoctorPage } from './pages/StrategyDoctorPage';
-import { PaperTradingPage } from './pages/PaperTradingPage';
-import { HFTResearchPage } from './pages/HFTResearchPage';
-import { SettingsPage } from './pages/SettingsPage';
+
+// Lazy-loaded sub-modules for fast initial page load and optimal code splitting
+const AIAnalystPage = lazy(() => import('./pages/AIAnalystPage').then((m) => ({ default: m.AIAnalystPage })));
+const BacktestPage = lazy(() => import('./pages/BacktestPage').then((m) => ({ default: m.BacktestPage })));
+const StrategyDoctorPage = lazy(() => import('./pages/StrategyDoctorPage').then((m) => ({ default: m.StrategyDoctorPage })));
+const PaperTradingPage = lazy(() => import('./pages/PaperTradingPage').then((m) => ({ default: m.PaperTradingPage })));
+const HFTResearchPage = lazy(() => import('./pages/HFTResearchPage').then((m) => ({ default: m.HFTResearchPage })));
+const SettingsPage = lazy(() => import('./pages/SettingsPage').then((m) => ({ default: m.SettingsPage })));
+
+const PageLoadingFallback = () => (
+  <div className="flex flex-col items-center justify-center min-h-[380px] gap-3 text-slate-400">
+    <div className="w-8 h-8 rounded-full border-2 border-blue-500 border-t-transparent animate-spin" />
+    <span className="text-xs font-semibold">Loading Module...</span>
+  </div>
+);
 import {
   SAMPLE_INDICES,
   SAMPLE_STOCKS,
@@ -564,88 +573,90 @@ export function App() {
 
       {/* Main Page Container */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6">
-        {activeTab === 'overview' && (
-          <OverviewPage
-            quote={currentQuote}
-            candles={currentCandles}
-            signal={currentSignal}
-            indices={SAMPLE_INDICES}
-            watchlist={watchlist}
-            allStocks={allStocksRegistry}
-            onSelectSymbol={(sym) => handleSelectSymbol(sym)}
-            onToggleWatchlist={handleToggleWatchlist}
-            onNavigateTab={setActiveTab}
-            isLoading={isLoading}
-            isSignalLoading={isSignalLoading}
-            error={apiError}
-            onRetry={handleRetry}
-            onOpenSearch={() => setIsSearchOpen(true)}
-          />
-        )}
+        <Suspense fallback={<PageLoadingFallback />}>
+          {activeTab === 'overview' && (
+            <OverviewPage
+              quote={currentQuote}
+              candles={currentCandles}
+              signal={currentSignal}
+              indices={SAMPLE_INDICES}
+              watchlist={watchlist}
+              allStocks={allStocksRegistry}
+              onSelectSymbol={(sym) => handleSelectSymbol(sym)}
+              onToggleWatchlist={handleToggleWatchlist}
+              onNavigateTab={setActiveTab}
+              isLoading={isLoading}
+              isSignalLoading={isSignalLoading}
+              error={apiError}
+              onRetry={handleRetry}
+              onOpenSearch={() => setIsSearchOpen(true)}
+            />
+          )}
 
-        {activeTab === 'analysis' && (
-          <AnalysisPage
-            quote={currentQuote}
-            candles={currentCandles}
-            indicators={currentIndicators}
-            signal={currentSignal}
-            isLoading={isLoading}
-            isSignalLoading={isSignalLoading}
-            error={apiError}
-            onRetry={handleRetry}
-          />
-        )}
+          {activeTab === 'analysis' && (
+            <AnalysisPage
+              quote={currentQuote}
+              candles={currentCandles}
+              indicators={currentIndicators}
+              signal={currentSignal}
+              isLoading={isLoading}
+              isSignalLoading={isSignalLoading}
+              error={apiError}
+              onRetry={handleRetry}
+            />
+          )}
 
-        {activeTab === 'ai' && (
-          <AIAnalystPage
-            quote={currentQuote}
-            indicators={currentIndicators}
-            report={currentAIReport}
-            geminiModel={settings.geminiModel}
-            isApiKeySet={settings.geminiApiKeyConfigured}
-            activeBacktestId={activeBacktestId}
-          />
-        )}
+          {activeTab === 'ai' && (
+            <AIAnalystPage
+              quote={currentQuote}
+              indicators={currentIndicators}
+              report={currentAIReport}
+              geminiModel={settings.geminiModel}
+              isApiKeySet={settings.geminiApiKeyConfigured}
+              activeBacktestId={activeBacktestId}
+            />
+          )}
 
-        {activeTab === 'backtest' && (
-          <BacktestPage
-            initialResult={SAMPLE_BACKTEST_RESULT}
-            selectedSymbol={selectedSymbol}
-            onSymbolChange={(sym) => handleSelectSymbol(sym)}
-            availableSymbols={Object.keys(allStocksRegistry)}
-            onBacktestSuccess={(id) => setActiveBacktestId(id)}
-            onNavigateToDoctor={() => setActiveTab('doctor')}
-          />
-        )}
+          {activeTab === 'backtest' && (
+            <BacktestPage
+              initialResult={SAMPLE_BACKTEST_RESULT}
+              selectedSymbol={selectedSymbol}
+              onSymbolChange={(sym) => handleSelectSymbol(sym)}
+              availableSymbols={Object.keys(allStocksRegistry)}
+              onBacktestSuccess={(id) => setActiveBacktestId(id)}
+              onNavigateToDoctor={() => setActiveTab('doctor')}
+            />
+          )}
 
-        {activeTab === 'doctor' && (
-          <StrategyDoctorPage
-            quote={currentQuote}
-            onSelectSymbol={(sym) => handleSelectSymbol(sym)}
-          />
-        )}
+          {activeTab === 'doctor' && (
+            <StrategyDoctorPage
+              quote={currentQuote}
+              onSelectSymbol={(sym) => handleSelectSymbol(sym)}
+            />
+          )}
 
-        {activeTab === 'paper' && (
-          <PaperTradingPage
-            account={paperAccount}
-            positions={paperPositions}
-            orders={paperOrders}
-            allStocks={allStocksRegistry}
-            selectedSymbol={selectedSymbol}
-            currentSignal={currentSignal}
-            isLoading={isPaperLoading}
-            onSymbolChange={(sym) => handleSelectSymbol(sym)}
-            onPlaceOrder={handlePlaceOrder}
-            onResetAccount={handleResetAccount}
-            onRefresh={refreshPaperData}
-          />
-        )}
+          {activeTab === 'paper' && (
+            <PaperTradingPage
+              account={paperAccount}
+              positions={paperPositions}
+              orders={paperOrders}
+              allStocks={allStocksRegistry}
+              selectedSymbol={selectedSymbol}
+              currentSignal={currentSignal}
+              isLoading={isPaperLoading}
+              onSymbolChange={(sym) => handleSelectSymbol(sym)}
+              onPlaceOrder={handlePlaceOrder}
+              onResetAccount={handleResetAccount}
+              onRefresh={refreshPaperData}
+            />
+          )}
 
-        {activeTab === 'hft' && <HFTResearchPage />}
+          {activeTab === 'hft' && <HFTResearchPage />}
 
-        {activeTab === 'settings' && (
-          <SettingsPage settings={settings} onSaveSettings={setSettings} />
-        )}
+          {activeTab === 'settings' && (
+            <SettingsPage settings={settings} onSaveSettings={setSettings} />
+          )}
+        </Suspense>
       </main>
 
       {/* Interactive Stock Search Modal */}

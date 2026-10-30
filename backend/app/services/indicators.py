@@ -123,54 +123,79 @@ def build_indicators_response(
     period: str = "1y",
     interval: str = "1d",
 ) -> StockIndicatorsResponse:
-    """Transforms enriched DataFrame into structured StockIndicatorsResponse."""
-    candles: List[CandleWithIndicators] = []
-
-    for idx, row in df_with_indicators.iterrows():
-        # Timestamp formatting
-        if hasattr(idx, "strftime"):
-            time_str = idx.strftime("%Y-%m-%d")
-        else:
-            time_str = str(idx)[:10]
-
-        candle = CandleWithIndicators(
-            time=time_str,
-            open=round(float(row["Open"]), 2),
-            high=round(float(row["High"]), 2),
-            low=round(float(row["Low"]), 2),
-            close=round(float(row["Close"]), 2),
-            volume=int(row["Volume"]),
-            indicators=IndicatorValues(
-                sma20=safe_float(row.get("SMA20")),
-                sma50=safe_float(row.get("SMA50")),
-                ema12=safe_float(row.get("EMA12")),
-                ema26=safe_float(row.get("EMA26")),
-                rsi14=safe_float(row.get("RSI14")),
-                macd_line=safe_float(row.get("MACD_Line")),
-                signal_line=safe_float(row.get("MACD_Signal")),
-                macd_histogram=safe_float(row.get("MACD_Hist")),
-                atr14=safe_float(row.get("ATR14")),
+    """Transforms enriched DataFrame into structured StockIndicatorsResponse using fast vectorized array extractions."""
+    if df_with_indicators.empty:
+        now_iso = datetime.now(timezone.utc).isoformat()
+        return StockIndicatorsResponse(
+            symbol=symbol,
+            source=source,
+            interval=interval,
+            period=period,
+            last_updated=now_iso,
+            is_delayed=True,
+            total_candles=0,
+            latest_indicators=IndicatorValues(
+                sma20=None, sma50=None, ema12=None, ema26=None,
+                rsi14=None, macd_line=None, signal_line=None,
+                macd_histogram=None, atr14=None,
             ),
+            trend_summary="NEUTRAL",
+            trend_score=50,
+            candles=[],
         )
-        candles.append(candle)
+
+    # Fast timestamp formatting
+    if isinstance(df_with_indicators.index, pd.DatetimeIndex):
+        time_strings = df_with_indicators.index.strftime("%Y-%m-%d").tolist()
+    else:
+        time_strings = [str(idx)[:10] for idx in df_with_indicators.index]
+
+    opens = df_with_indicators["Open"].to_numpy()
+    highs = df_with_indicators["High"].to_numpy()
+    lows = df_with_indicators["Low"].to_numpy()
+    closes = df_with_indicators["Close"].to_numpy()
+    volumes = df_with_indicators["Volume"].to_numpy()
+
+    # Pre-extract indicator columns as numpy arrays with nan handling
+    sma20_arr = df_with_indicators["SMA20"].to_numpy() if "SMA20" in df_with_indicators else np.full(len(df_with_indicators), np.nan)
+    sma50_arr = df_with_indicators["SMA50"].to_numpy() if "SMA50" in df_with_indicators else np.full(len(df_with_indicators), np.nan)
+    ema12_arr = df_with_indicators["EMA12"].to_numpy() if "EMA12" in df_with_indicators else np.full(len(df_with_indicators), np.nan)
+    ema26_arr = df_with_indicators["EMA26"].to_numpy() if "EMA26" in df_with_indicators else np.full(len(df_with_indicators), np.nan)
+    rsi14_arr = df_with_indicators["RSI14"].to_numpy() if "RSI14" in df_with_indicators else np.full(len(df_with_indicators), np.nan)
+    macd_line_arr = df_with_indicators["MACD_Line"].to_numpy() if "MACD_Line" in df_with_indicators else np.full(len(df_with_indicators), np.nan)
+    macd_sig_arr = df_with_indicators["MACD_Signal"].to_numpy() if "MACD_Signal" in df_with_indicators else np.full(len(df_with_indicators), np.nan)
+    macd_hist_arr = df_with_indicators["MACD_Hist"].to_numpy() if "MACD_Hist" in df_with_indicators else np.full(len(df_with_indicators), np.nan)
+    atr14_arr = df_with_indicators["ATR14"].to_numpy() if "ATR14" in df_with_indicators else np.full(len(df_with_indicators), np.nan)
+
+    candles: List[CandleWithIndicators] = []
+    n = len(df_with_indicators)
+    for i in range(n):
+        candles.append(
+            CandleWithIndicators(
+                time=time_strings[i],
+                open=round(float(opens[i]), 2),
+                high=round(float(highs[i]), 2),
+                low=round(float(lows[i]), 2),
+                close=round(float(closes[i]), 2),
+                volume=int(volumes[i]),
+                indicators=IndicatorValues(
+                    sma20=safe_float(sma20_arr[i]),
+                    sma50=safe_float(sma50_arr[i]),
+                    ema12=safe_float(ema12_arr[i]),
+                    ema26=safe_float(ema26_arr[i]),
+                    rsi14=safe_float(rsi14_arr[i]),
+                    macd_line=safe_float(macd_line_arr[i]),
+                    signal_line=safe_float(macd_sig_arr[i]),
+                    macd_histogram=safe_float(macd_hist_arr[i]),
+                    atr14=safe_float(atr14_arr[i]),
+                ),
+            )
+        )
 
     # Get latest row for summary
-    latest_row = df_with_indicators.iloc[-1]
-    latest_indicators = IndicatorValues(
-        sma20=safe_float(latest_row.get("SMA20")),
-        sma50=safe_float(latest_row.get("SMA50")),
-        ema12=safe_float(latest_row.get("EMA12")),
-        ema26=safe_float(latest_row.get("EMA26")),
-        rsi14=safe_float(latest_row.get("RSI14")),
-        macd_line=safe_float(latest_row.get("MACD_Line")),
-        signal_line=safe_float(latest_row.get("MACD_Signal")),
-        macd_histogram=safe_float(latest_row.get("MACD_Hist")),
-        atr14=safe_float(latest_row.get("ATR14")),
-    )
-
-    # Determine trend score & summary
+    latest_indicators = candles[-1].indicators
     score = 50
-    close_val = latest_row["Close"]
+    close_val = float(closes[-1])
 
     if latest_indicators.sma20 is not None:
         if close_val > latest_indicators.sma20:

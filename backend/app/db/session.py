@@ -1,6 +1,6 @@
 """Database engine and session management for MarketIQ."""
 from typing import Generator
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 from sqlalchemy.orm import declarative_base, sessionmaker, Session
 
 from ..config import settings
@@ -18,6 +18,19 @@ engine = create_engine(
     pool_pre_ping=True,
     echo=False,
 )
+
+# Apply SQLite performance optimizations: WAL mode, memory temp store, 64MB cache
+if "sqlite" in settings.database_url:
+    @event.listens_for(engine, "connect")
+    def _set_sqlite_pragmas(dbapi_connection, connection_record):
+        cursor = dbapi_connection.cursor()
+        try:
+            cursor.execute("PRAGMA journal_mode = WAL")
+            cursor.execute("PRAGMA synchronous = NORMAL")
+            cursor.execute("PRAGMA cache_size = -64000")
+            cursor.execute("PRAGMA temp_store = MEMORY")
+        finally:
+            cursor.close()
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 

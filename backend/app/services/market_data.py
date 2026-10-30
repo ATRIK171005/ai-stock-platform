@@ -92,6 +92,7 @@ class YFinanceProvider(MarketDataProvider):
     def __init__(self, cache_ttl: int = settings.cache_ttl_seconds):
         self.cache_ttl = cache_ttl
         self._cache: Dict[Tuple[str, str, str], Tuple[float, pd.DataFrame]] = {}
+        self._in_flight: Dict[Tuple[str, str, str], threading.Event] = {}
         self._lock = threading.Lock()
 
     def normalize_symbol(self, raw_symbol: str) -> Tuple[str, str]:
@@ -123,63 +124,84 @@ class YFinanceProvider(MarketDataProvider):
             )
 
     def fetch_history(self, raw_symbol: str, period: str = "1y", interval: str = "1d") -> pd.DataFrame:
-        """Retrieves and cleans historical OHLCV candles with caching."""
+        """Retrieves and cleans historical OHLCV candles with caching and single-flight coalescing."""
         symbol, _ = self.normalize_symbol(raw_symbol)
         self.validate_params(period, interval)
 
         cache_key = (symbol, period, interval)
         now = time.time()
 
-        # Check cache
+        # Check cache or register for in-flight coalescing
         with self._lock:
             if cache_key in self._cache:
                 timestamp, cached_df = self._cache[cache_key]
                 if now - timestamp < self.cache_ttl:
                     return cached_df.copy()
 
-        # Fetch from yfinance (using alias if symbol was renamed upstream)
-        upstream_symbol = self.UPSTREAM_ALIASES.get(symbol, symbol)
+            if cache_key in self._in_flight:
+                event = self._in_flight[cache_key]
+                is_leader = False
+            else:
+                event = threading.Event()
+                self._in_flight[cache_key] = event
+                is_leader = True
+
+        if not is_leader:
+            # Another request is fetching the identical symbol/period; wait for it to complete
+            event.wait(timeout=float(settings.request_timeout_seconds))
+            with self._lock:
+                if cache_key in self._cache:
+                    return self._cache[cache_key][1].copy()
+
         try:
-            ticker = yf.Ticker(upstream_symbol)
-            df = ticker.history(period=period, interval=interval, auto_adjust=True)
-        except Exception as e:
-            raise RateLimitOrTimeoutError(f"Upstream provider failure fetching data for '{symbol}': {str(e)}")
+            # Fetch from yfinance (using alias if symbol was renamed upstream)
+            upstream_symbol = self.UPSTREAM_ALIASES.get(symbol, symbol)
+            try:
+                ticker = yf.Ticker(upstream_symbol)
+                df = ticker.history(period=period, interval=interval, auto_adjust=True)
+            except Exception as e:
+                raise RateLimitOrTimeoutError(f"Upstream provider failure fetching data for '{symbol}': {str(e)}")
 
-        if df is None or df.empty:
-            raise DataUnavailableError(f"No market data found for symbol '{symbol}' with period='{period}'.")
+            if df is None or df.empty:
+                raise DataUnavailableError(f"No market data found for symbol '{symbol}' with period='{period}'.")
 
-        # Verify required columns exist
-        req_cols = ["Open", "High", "Low", "Close", "Volume"]
-        missing = [c for c in req_cols if c not in df.columns]
-        if missing:
-            raise DataUnavailableError(f"Market data response missing required columns: {missing}")
+            # Verify required columns exist
+            req_cols = ["Open", "High", "Low", "Close", "Volume"]
+            missing = [c for c in req_cols if c not in df.columns]
+            if missing:
+                raise DataUnavailableError(f"Market data response missing required columns: {missing}")
 
-        # Clean and sort chronologically
-        cleaned_df = df[req_cols].copy()
-        cleaned_df = cleaned_df.dropna(subset=["Open", "High", "Low", "Close"])
-        cleaned_df = cleaned_df[~cleaned_df.index.duplicated(keep="first")]
-        cleaned_df = cleaned_df.sort_index(ascending=True)
+            # Clean and sort chronologically
+            cleaned_df = df[req_cols].copy()
+            cleaned_df = cleaned_df.dropna(subset=["Open", "High", "Low", "Close"])
+            cleaned_df = cleaned_df[~cleaned_df.index.duplicated(keep="first")]
+            cleaned_df = cleaned_df.sort_index(ascending=True)
 
-        if cleaned_df.empty:
-            raise DataUnavailableError(f"All returned records were invalid or NaN for '{symbol}'.")
+            if cleaned_df.empty:
+                raise DataUnavailableError(f"All returned records were invalid or NaN for '{symbol}'.")
 
-        # Ensure volume is integer
-        cleaned_df["Volume"] = cleaned_df["Volume"].fillna(0).astype(np.int64)
+            # Ensure volume is integer
+            cleaned_df["Volume"] = cleaned_df["Volume"].fillna(0).astype(np.int64)
 
-        # Store in cache with bounded size management
-        with self._lock:
-            if len(self._cache) >= 200:
-                # Purge expired entries
-                expired = [k for k, (ts, _) in self._cache.items() if now - ts >= self.cache_ttl]
-                for k in expired:
-                    del self._cache[k]
-                # If still at limit, evict oldest entry
+            # Store in cache with bounded size management
+            with self._lock:
                 if len(self._cache) >= 200:
-                    oldest_k = min(self._cache.keys(), key=lambda k: self._cache[k][0])
-                    del self._cache[oldest_k]
-            self._cache[cache_key] = (now, cleaned_df)
+                    # Purge expired entries
+                    expired = [k for k, (ts, _) in self._cache.items() if now - ts >= self.cache_ttl]
+                    for k in expired:
+                        del self._cache[k]
+                    # If still at limit, evict oldest entry
+                    if len(self._cache) >= 200:
+                        oldest_k = min(self._cache.keys(), key=lambda k: self._cache[k][0])
+                        del self._cache[oldest_k]
+                self._cache[cache_key] = (now, cleaned_df)
 
-        return cleaned_df.copy()
+            return cleaned_df.copy()
+        finally:
+            if is_leader:
+                with self._lock:
+                    self._in_flight.pop(cache_key, None)
+                    event.set()
 
     def search_symbols(self, query: str) -> List[StockSearchResult]:
         """Case-insensitive search over Indian equities registry."""

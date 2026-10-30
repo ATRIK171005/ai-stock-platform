@@ -158,6 +158,34 @@ export interface HealthStatus {
 // In-flight request deduplication map
 const inFlightRequests = new Map<string, Promise<any>>();
 
+// Client-side in-memory response cache with 30s TTL
+interface CacheEntry<T> {
+  data: T;
+  timestamp: number;
+}
+const clientResponseCache = new Map<string, CacheEntry<any>>();
+const CLIENT_CACHE_TTL_MS = 30000; // 30 seconds
+
+function getCachedResponse<T>(key: string): T | null {
+  const entry = clientResponseCache.get(key);
+  if (entry && Date.now() - entry.timestamp < CLIENT_CACHE_TTL_MS) {
+    return entry.data;
+  }
+  return null;
+}
+
+function setCachedResponse<T>(key: string, data: T): void {
+  if (clientResponseCache.size > 150) {
+    const oldestKey = clientResponseCache.keys().next().value;
+    if (oldestKey) clientResponseCache.delete(oldestKey);
+  }
+  clientResponseCache.set(key, { data, timestamp: Date.now() });
+}
+
+export function invalidateClientCache(): void {
+  clientResponseCache.clear();
+}
+
 async function fetchWithTimeout<T>(
   url: string,
   options: RequestInit = {},
@@ -248,6 +276,9 @@ export async function searchStocks(
   const trimmed = query.trim();
   const cacheKey = `search:${trimmed}`;
 
+  const cached = getCachedResponse<StockSearchResult[]>(cacheKey);
+  if (cached) return cached;
+
   if (inFlightRequests.has(cacheKey)) {
     return inFlightRequests.get(cacheKey)!;
   }
@@ -259,7 +290,9 @@ export async function searchStocks(
         { method: 'GET', signal },
         8000
       );
-      return data.results || [];
+      const results = data.results || [];
+      setCachedResponse(cacheKey, results);
+      return results;
     } finally {
       inFlightRequests.delete(cacheKey);
     }
@@ -276,16 +309,22 @@ export async function fetchStockHistory(
   signal?: AbortSignal
 ): Promise<BackendHistoryResponse> {
   const cacheKey = `history:${symbol}:${period}:${interval}`;
+
+  const cached = getCachedResponse<BackendHistoryResponse>(cacheKey);
+  if (cached) return cached;
+
   if (inFlightRequests.has(cacheKey)) {
     return inFlightRequests.get(cacheKey)!;
   }
 
   const promise = (async () => {
     try {
-      return await fetchWithTimeout<BackendHistoryResponse>(
+      const data = await fetchWithTimeout<BackendHistoryResponse>(
         `${API_BASE_URL}/api/stocks/${encodeURIComponent(symbol)}/history?period=${period}&interval=${interval}`,
         { method: 'GET', signal }
       );
+      setCachedResponse(cacheKey, data);
+      return data;
     } finally {
       inFlightRequests.delete(cacheKey);
     }
@@ -302,16 +341,22 @@ export async function fetchStockIndicators(
   signal?: AbortSignal
 ): Promise<BackendIndicatorsResponse> {
   const cacheKey = `indicators:${symbol}:${period}:${interval}`;
+
+  const cached = getCachedResponse<BackendIndicatorsResponse>(cacheKey);
+  if (cached) return cached;
+
   if (inFlightRequests.has(cacheKey)) {
     return inFlightRequests.get(cacheKey)!;
   }
 
   const promise = (async () => {
     try {
-      return await fetchWithTimeout<BackendIndicatorsResponse>(
+      const data = await fetchWithTimeout<BackendIndicatorsResponse>(
         `${API_BASE_URL}/api/stocks/${encodeURIComponent(symbol)}/indicators?period=${period}&interval=${interval}`,
         { method: 'GET', signal }
       );
+      setCachedResponse(cacheKey, data);
+      return data;
     } finally {
       inFlightRequests.delete(cacheKey);
     }
@@ -328,16 +373,22 @@ export async function fetchStockSignal(
   signal?: AbortSignal
 ): Promise<BackendSignalResponse> {
   const cacheKey = `signal:${symbol}:${period}:${interval}`;
+
+  const cached = getCachedResponse<BackendSignalResponse>(cacheKey);
+  if (cached) return cached;
+
   if (inFlightRequests.has(cacheKey)) {
     return inFlightRequests.get(cacheKey)!;
   }
 
   const promise = (async () => {
     try {
-      return await fetchWithTimeout<BackendSignalResponse>(
+      const data = await fetchWithTimeout<BackendSignalResponse>(
         `${API_BASE_URL}/api/stocks/${encodeURIComponent(symbol)}/signal?period=${period}&interval=${interval}`,
         { method: 'GET', signal }
       );
+      setCachedResponse(cacheKey, data);
+      return data;
     } finally {
       inFlightRequests.delete(cacheKey);
     }
