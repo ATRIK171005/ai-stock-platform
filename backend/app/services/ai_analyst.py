@@ -379,9 +379,13 @@ class AIAnalystService:
         return self.get_client()
 
     def _analyze_with_groq(self, prompt: str, data_ts: str) -> Tuple[StructuredAIAnalysis, str]:
-        """Calls Groq OpenAI-compatible chat completions endpoint with JSON mode."""
+        """Calls Groq OpenAI-compatible chat completions endpoint with JSON mode, retries, and fallback."""
         api_key = (settings.groq_api_key or "").strip()
-        model_name = settings.groq_model or "llama-3.3-70b-versatile"
+        primary_model = settings.groq_model or "openai/gpt-oss-120b"
+        candidate_models = [primary_model]
+        if "openai/gpt-oss-20b" not in candidate_models:
+            candidate_models.append("openai/gpt-oss-20b")
+
         url = "https://api.groq.com/openai/v1/chat/completions"
         headers = {
             "Authorization": f"Bearer {api_key}",
@@ -393,37 +397,60 @@ class AIAnalystService:
             f"CRITICAL: You MUST respond ONLY with a valid JSON object matching this schema:\n"
             f"{schema_json}"
         )
-        payload = {
-            "model": model_name,
-            "messages": [
-                {"role": "system", "content": system_instruction},
-                {"role": "user", "content": prompt},
-            ],
-            "response_format": {"type": "json_object"},
-            "temperature": 0.2,
-        }
-        try:
-            with httpx.Client(timeout=settings.ai_request_timeout_seconds) as http_client:
-                resp = http_client.post(url, headers=headers, json=payload)
 
-            if resp.status_code == 429:
-                raise AIRateLimitError("Groq rate limit exceeded. Please wait a moment before sending another request.")
-            elif resp.status_code in (401, 403):
-                raise AIProviderError("Invalid GROQ_API_KEY or unauthorized Groq access.")
-            elif resp.status_code != 200:
-                raise AIProviderError(f"Groq API returned HTTP {resp.status_code}: {resp.text[:200]}")
+        transport = httpx.HTTPTransport(retries=2)
+        timeout = httpx.Timeout(settings.ai_request_timeout_seconds, connect=10.0)
 
-            resp_data = resp.json()
-            raw_text = resp_data["choices"][0]["message"]["content"]
-            structured = parse_structured_ai_response(raw_text, default_timestamp=data_ts)
-            return structured, model_name
-        except (AIRateLimitError, AIProviderError):
-            raise
-        except httpx.TimeoutException:
+        last_error = None
+        for model in candidate_models:
+            payload = {
+                "model": model,
+                "messages": [
+                    {"role": "system", "content": system_instruction},
+                    {"role": "user", "content": prompt},
+                ],
+                "response_format": {"type": "json_object"},
+                "temperature": 0.2,
+            }
+            for attempt in range(2):
+                try:
+                    logger.info("Calling Groq API (model=%s, attempt=%d)...", model, attempt + 1)
+                    with httpx.Client(transport=transport, timeout=timeout) as http_client:
+                        resp = http_client.post(url, headers=headers, json=payload)
+
+                    if resp.status_code == 429:
+                        raise AIRateLimitError("Groq rate limit exceeded. Please wait a moment before sending another request.")
+                    elif resp.status_code in (401, 403):
+                        raise AIProviderError("Invalid GROQ_API_KEY or unauthorized Groq access.")
+                    elif resp.status_code >= 500:
+                        raise AIProviderError(f"Groq API returned HTTP {resp.status_code}: {resp.text[:200]}")
+                    elif resp.status_code != 200:
+                        raise AIProviderError(f"Groq API error ({resp.status_code}): {resp.text[:200]}")
+
+                    resp_data = resp.json()
+                    raw_text = resp_data["choices"][0]["message"]["content"]
+                    structured = parse_structured_ai_response(raw_text, default_timestamp=data_ts)
+                    return structured, model
+                except (AIRateLimitError, AIKeyNotConfiguredError):
+                    raise
+                except (httpx.RemoteProtocolError, httpx.ConnectError, httpx.ReadTimeout, httpx.TimeoutException) as e:
+                    last_error = e
+                    logger.warning("Groq connection issue on model %s attempt %d: %s", model, attempt + 1, e)
+                    if attempt == 0:
+                        time.sleep(0.5)
+                        continue
+                except AIProviderError as e:
+                    last_error = e
+                    logger.warning("Groq provider error on model %s: %s", model, e)
+                    break
+                except Exception as e:
+                    last_error = e
+                    logger.warning("Groq error on model %s: %s", model, e)
+                    break
+
+        if isinstance(last_error, httpx.TimeoutException):
             raise AITimeoutError("Groq request timed out while generating market analysis.")
-        except Exception as e:
-            logger.error("Unexpected error during Groq analysis: %s", str(e), exc_info=True)
-            raise AIProviderError(f"Unexpected error while synthesizing analysis with Groq: {str(e)}")
+        raise AIProviderError(f"Unexpected error while synthesizing analysis with Groq: {str(last_error)}")
 
     def _analyze_with_gemini(self, prompt: str, data_ts: str, symbol: str) -> Tuple[StructuredAIAnalysis, str]:
         """Calls Google Gemini with Structured Output."""
@@ -491,7 +518,14 @@ class AIAnalystService:
         data_ts = context.get("latest_date") or datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
         if provider == "GROQ":
-            structured_analysis, model_used = self._analyze_with_groq(prompt, data_ts)
+            try:
+                structured_analysis, model_used = self._analyze_with_groq(prompt, data_ts)
+            except Exception as e:
+                if settings.gemini_api_key and settings.gemini_api_key.strip():
+                    logger.warning("Groq analysis failed (%s); falling back to Gemini", e)
+                    structured_analysis, model_used = self._analyze_with_gemini(prompt, data_ts, request.symbol)
+                else:
+                    raise
         else:
             structured_analysis, model_used = self._analyze_with_gemini(prompt, data_ts, request.symbol)
 

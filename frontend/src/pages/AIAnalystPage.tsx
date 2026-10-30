@@ -43,6 +43,7 @@ interface ChatMessage {
   structuredAnalysis?: StructuredAIAnalysis;
   structuredReport?: AIAnalysisReport;
   isError?: boolean;
+  failedQuery?: string;
 }
 
 export const AIAnalystPage: React.FC<AIAnalystPageProps> = ({
@@ -57,6 +58,7 @@ export const AIAnalystPage: React.FC<AIAnalystPageProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [isApiConnected, setIsApiConnected] = useState<boolean>(initialApiKeySet);
   const [activeModel, setActiveModel] = useState<string>(geminiModel);
+  const [activeProvider, setActiveProvider] = useState<string>('AI Analyst');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [lastFailedQuery, setLastFailedQuery] = useState<string | null>(null);
 
@@ -73,12 +75,13 @@ export const AIAnalystPage: React.FC<AIAnalystPageProps> = ({
     },
   ]);
 
-  // Check Gemini backend health on mount
+  // Check AI backend health on mount
   useEffect(() => {
     checkAIHealth().then((status) => {
       if (status) {
         setIsApiConnected(status.configured);
         if (status.model) setActiveModel(status.model);
+        if (status.provider) setActiveProvider(status.provider);
       }
     });
   }, []);
@@ -144,13 +147,24 @@ export const AIAnalystPage: React.FC<AIAnalystPageProps> = ({
       let friendlyError = err.message || 'An error occurred while connecting to the AI Market Analyst.';
       if (err instanceof ApiError) {
         if (err.errorCode === 'AI_KEY_NOT_CONFIGURED') {
-          friendlyError = 'GEMINI_API_KEY is not configured on the backend server. Add GEMINI_API_KEY to backend/.env to activate live Gemini analysis.';
+          friendlyError = 'Neither GROQ_API_KEY nor GEMINI_API_KEY is configured on the backend server. Add a key to backend/.env to activate live AI analysis.';
           setIsApiConnected(false);
         } else if (err.errorCode === 'AI_RATE_LIMIT') {
-          friendlyError = 'Gemini API rate limit or quota exceeded. Please wait a moment before sending another question.';
-        } else if (err.errorCode === 'AI_TIMEOUT') {
-          friendlyError = 'Gemini request timed out while analyzing market context. Please try again.';
+          friendlyError = 'AI rate limit exceeded. Please wait a few seconds before sending another question.';
+        } else if (err.errorCode === 'AI_TIMEOUT' || err.status === 408) {
+          friendlyError = 'The AI analysis took longer than expected to synthesize. Click "Retry Analysis" to re-run your question.';
+        } else if (
+          err.status === 503 ||
+          err.errorCode === 'NETWORK_ERROR' ||
+          err.detail?.toLowerCase().includes('failed to fetch') ||
+          err.message?.toLowerCase().includes('failed to fetch')
+        ) {
+          friendlyError = 'The connection to the AI analyst was briefly interrupted (temporary network or tunnel reconnect). Please click "Retry Analysis" below to continue.';
+        } else if (err.detail) {
+          friendlyError = err.detail;
         }
+      } else if (err.message?.toLowerCase().includes('failed to fetch')) {
+        friendlyError = 'The connection to the AI analyst was briefly interrupted (temporary network or tunnel reconnect). Please click "Retry Analysis" below to continue.';
       }
 
       setErrorMessage(friendlyError);
@@ -162,6 +176,7 @@ export const AIAnalystPage: React.FC<AIAnalystPageProps> = ({
         timestamp: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }),
         text: `⚠️ Analysis Unavailable: ${friendlyError}`,
         isError: true,
+        failedQuery: q,
       };
       setMessages((prev) => [...prev, errorMsg]);
     } finally {
@@ -200,7 +215,7 @@ export const AIAnalystPage: React.FC<AIAnalystPageProps> = ({
               </span>
             </div>
             <p className="text-xs text-slate-400 mt-0.5">
-              Powered by official Google Gen AI SDK. Strictly separates factual observations from model hypotheses.
+              Powered by {activeProvider}. Strictly separates factual observations from model hypotheses.
             </p>
           </div>
         </div>
@@ -214,7 +229,7 @@ export const AIAnalystPage: React.FC<AIAnalystPageProps> = ({
 
           <div className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-slate-800 border border-slate-700 text-xs text-slate-300">
             <span className={`w-2 h-2 rounded-full ${isApiConnected ? 'bg-emerald-400' : 'bg-amber-400'}`}></span>
-            <span>{isApiConnected ? 'Gemini Connected' : 'Key Missing (.env)'}</span>
+            <span>{isApiConnected ? `${activeProvider} Ready` : 'Key Missing (.env)'}</span>
           </div>
 
           <button
@@ -234,22 +249,23 @@ export const AIAnalystPage: React.FC<AIAnalystPageProps> = ({
           <div className="flex items-start gap-3">
             <AlertCircle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
             <div className="space-y-0.5">
-              <strong className="text-amber-200">Google Gemini API Key Not Configured</strong>
+              <strong className="text-amber-200">AI Provider Key Not Configured</strong>
               <p className="text-slate-400 text-[11px]">
-                To activate live AI responses, obtain an API key from Google AI Studio and place it in{' '}
+                To activate live AI responses, obtain an API key from Groq or Google AI Studio and place it in{' '}
                 <code className="text-amber-300 bg-amber-950/60 px-1 py-0.5 rounded font-mono">backend/.env</code> as{' '}
+                <code className="text-amber-300 bg-amber-950/60 px-1 py-0.5 rounded font-mono">GROQ_API_KEY=your_key</code> or{' '}
                 <code className="text-amber-300 bg-amber-950/60 px-1 py-0.5 rounded font-mono">GEMINI_API_KEY=your_key</code>.
                 The rest of the trading platform remains fully functional.
               </p>
             </div>
           </div>
           <a
-            href="https://aistudio.google.com/"
+            href="https://console.groq.com/keys"
             target="_blank"
             rel="noreferrer"
             className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border border-amber-500/30 text-xs font-medium transition-colors"
           >
-            <span>Get Gemini API Key</span>
+            <span>Get Groq Key</span>
             <ExternalLink className="w-3.5 h-3.5" />
           </a>
         </div>
@@ -290,6 +306,21 @@ export const AIAnalystPage: React.FC<AIAnalystPageProps> = ({
                       {msg.text && (
                         <div className="leading-relaxed whitespace-pre-line font-medium text-slate-100">
                           {msg.text}
+                        </div>
+                      )}
+
+                      {/* Inline Retry Action for Interrupted Requests */}
+                      {msg.isError && msg.failedQuery && (
+                        <div className="pt-2">
+                          <button
+                            type="button"
+                            onClick={() => handleSend(msg.failedQuery)}
+                            disabled={isLoading}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-600/30 hover:bg-rose-600/50 border border-rose-500/40 text-rose-200 text-xs font-semibold transition-all cursor-pointer shadow-sm active:scale-95 disabled:opacity-50"
+                          >
+                            <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
+                            <span>Retry Analysis</span>
+                          </button>
                         </div>
                       )}
 

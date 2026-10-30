@@ -252,7 +252,7 @@ async function fetchWithTimeout<T>(
       if (callerSignal?.aborted) {
         throw new ApiError(499, 'Request aborted by caller', 'CLIENT_ABORTED');
       }
-      throw new ApiError(408, 'Request timed out after 20s', 'REQUEST_TIMEOUT');
+      throw new ApiError(408, `Request timed out after ${Math.round(timeoutMs / 1000)}s`, 'REQUEST_TIMEOUT');
     }
     if (err instanceof ApiError) {
       throw err;
@@ -689,7 +689,7 @@ export async function analyzeStockWithAI(
       body: JSON.stringify(req),
       signal,
     },
-    25000
+    45000
   );
 }
 
