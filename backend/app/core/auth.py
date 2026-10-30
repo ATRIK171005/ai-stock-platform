@@ -17,7 +17,7 @@ from ..db.session import get_db
 
 logger = logging.getLogger("market_platform.auth")
 
-AUTH_SECRET_KEY = settings.api_secret_key or "marketiq_production_jwt_hmac_secret_2026_key"
+AUTH_SECRET_KEY = settings.jwt_secret_key or settings.api_secret_key or "marketiq_production_jwt_hmac_secret_2026_key"
 PBKDF2_ITERATIONS = 100_000
 
 

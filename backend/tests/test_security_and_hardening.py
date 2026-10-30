@@ -168,3 +168,36 @@ def test_database_transaction_rollback_on_failure(test_db_session):
     # Re-query account and verify cash was untouched
     account_after = service.get_or_create_account(test_db_session, "rollback_test_account")
     assert account_after.cash_balance == initial_cash
+
+
+def test_cors_origins_flexible_parsing():
+    """cors_origins setting must parse wildcard string, JSON array, and comma-separated lists cleanly."""
+    from app.config import Settings
+
+    # 1. Wildcard string
+    s_wildcard = Settings(cors_origins="*")
+    assert s_wildcard.cors_origins == ["*"]
+
+    # 2. Comma-separated list
+    s_comma = Settings(cors_origins="https://marketiq.onrender.com, https://localhost:3000")
+    assert s_comma.cors_origins == ["https://marketiq.onrender.com", "https://localhost:3000"]
+
+    # 3. JSON-formatted array
+    s_json = Settings(cors_origins='["https://app.vercel.app"]')
+    assert s_json.cors_origins == ["https://app.vercel.app"]
+
+
+def test_cors_options_preflight_handling(client: TestClient):
+    """OPTIONS preflight requests must return HTTP 200 with appropriate CORS headers."""
+    res = client.options(
+        "/api/health",
+        headers={
+            "Origin": "http://localhost:5173",
+            "Access-Control-Request-Method": "GET",
+            "Access-Control-Request-Headers": "authorization,x-account-id,content-type",
+        },
+    )
+    assert res.status_code == 200
+    assert "access-control-allow-origin" in res.headers
+    assert "access-control-allow-headers" in res.headers
+

@@ -21,7 +21,9 @@ services:
       - key: AI_PROVIDER
         value: AUTO
       - key: GROQ_MODEL
-        value: openai/gpt-oss-120b
+        value: llama-3.3-70b-versatile
+      - key: JWT_SECRET_KEY
+        generateValue: true
       - key: GROQ_API_KEY
         sync: false
       - key: GEMINI_API_KEY

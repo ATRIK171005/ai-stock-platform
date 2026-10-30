@@ -47,25 +47,16 @@ export const setStoredAccountId = (accountId: string) => {
 };
 
 export const getApiBaseUrl = (): string => {
-  if (typeof window !== 'undefined') {
-    // In any browser context, use relative '' so all requests are same-origin /api/...
-    // - On Vite dev server: Vite's proxy forwards /api to http://127.0.0.1:8000
-    // - On Cloudflare tunnel: tunnel routes /api through Vite proxy to backend
-    // - In production/Docker: Nginx routes /api to backend:8000
-    // This completely eliminates CORS preflight errors, Private Network Access blocks,
-    // and HTTPS mixed content failures.
-    const configuredUrl = import.meta.env.VITE_API_BASE_URL;
-    if (configuredUrl && configuredUrl.startsWith('https://')) {
-      return configuredUrl;
-    }
-    return '';
-  }
-
   const configuredUrl = import.meta.env.VITE_API_BASE_URL;
-  if (configuredUrl) {
-    return configuredUrl;
+  if (configuredUrl && typeof configuredUrl === 'string' && configuredUrl.trim() !== '') {
+    const cleanUrl = configuredUrl.trim().replace(/\/+$/, '');
+    // In browser, avoid mixed content (HTTP API call from HTTPS origin)
+    if (typeof window !== 'undefined' && window.location.protocol === 'https:' && cleanUrl.startsWith('http://')) {
+      return '';
+    }
+    return cleanUrl;
   }
-  return 'http://127.0.0.1:8000';
+  return '';
 };
 
 export const API_BASE_URL = getApiBaseUrl();

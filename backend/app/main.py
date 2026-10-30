@@ -69,24 +69,25 @@ async def lifespan(app: FastAPI):
     logger.info("Database schemas verified.")
 
     # Lightweight column migration for existing SQLite database
-    try:
-        from sqlalchemy import text
-        with engine.connect() as conn:
-            res = conn.execute(text("PRAGMA table_info(paper_accounts)"))
-            cols = [r[1] for r in res.fetchall()]
-            if cols and "name" not in cols:
-                conn.execute(text("ALTER TABLE paper_accounts ADD COLUMN name VARCHAR(128) DEFAULT 'Primary Portfolio'"))
-                conn.commit()
-                logger.info("Added 'name' column to paper_accounts table.")
+    if "sqlite" in settings.database_url:
+        try:
+            from sqlalchemy import text
+            with engine.connect() as conn:
+                res = conn.execute(text("PRAGMA table_info(paper_accounts)"))
+                cols = [r[1] for r in res.fetchall()]
+                if cols and "name" not in cols:
+                    conn.execute(text("ALTER TABLE paper_accounts ADD COLUMN name VARCHAR(128) DEFAULT 'Primary Portfolio'"))
+                    conn.commit()
+                    logger.info("Added 'name' column to paper_accounts table.")
 
-            orders_res = conn.execute(text("PRAGMA table_info(paper_orders)"))
-            orders_cols = [r[1] for r in orders_res.fetchall()]
-            if orders_cols and "stop_loss_price" not in orders_cols:
-                conn.execute(text("ALTER TABLE paper_orders ADD COLUMN stop_loss_price NUMERIC(12, 2)"))
-                conn.commit()
-                logger.info("Added 'stop_loss_price' column to paper_orders table.")
-    except Exception as e:
-        logger.debug("Table migration check: %s", e)
+                orders_res = conn.execute(text("PRAGMA table_info(paper_orders)"))
+                orders_cols = [r[1] for r in orders_res.fetchall()]
+                if orders_cols and "stop_loss_price" not in orders_cols:
+                    conn.execute(text("ALTER TABLE paper_orders ADD COLUMN stop_loss_price NUMERIC(12, 2)"))
+                    conn.commit()
+                    logger.info("Added 'stop_loss_price' column to paper_orders table.")
+        except Exception as e:
+            logger.debug("SQLite table migration check: %s", e)
 
     yield
     logger.info("Disposing database connection pool...")
@@ -109,6 +110,7 @@ app.add_middleware(
     allow_credentials=not is_wildcard,  # Wildcard cannot have allow_credentials=True per CORS spec
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 

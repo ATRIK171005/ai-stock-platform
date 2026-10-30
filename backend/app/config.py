@@ -1,5 +1,5 @@
 import json
-from typing import Any, List, Optional
+from typing import Any, List, Optional, Union
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     environment: str = "development"
     port: int = 8000
     host: str = "0.0.0.0"
-    cors_origins: List[str] = [
+    cors_origins: Union[List[str], str] = [
         "http://localhost:3000",
         "http://127.0.0.1:3000",
         "http://localhost:5173",
@@ -32,7 +32,7 @@ class Settings(BaseSettings):
     gemini_api_key: Optional[str] = None
     gemini_model: str = "gemini-2.5-flash"
     groq_api_key: Optional[str] = None
-    groq_model: str = "openai/gpt-oss-120b"
+    groq_model: str = "llama-3.3-70b-versatile"
     ai_provider: str = "AUTO"  # "AUTO", "GROQ", or "GEMINI"
     ai_request_timeout_seconds: int = 20
     ai_max_history_messages: int = 10
@@ -53,18 +53,22 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    @field_validator("cors_origins", mode="before")
+    @field_validator("cors_origins", mode="after")
     @classmethod
     def parse_cors_origins(cls, v: Any) -> List[str]:
         if isinstance(v, str):
             v_trimmed = v.strip()
             if v_trimmed.startswith("[") and v_trimmed.endswith("]"):
                 try:
-                    return json.loads(v_trimmed)
+                    parsed = json.loads(v_trimmed)
+                    if isinstance(parsed, list):
+                        return [str(o).strip() for o in parsed if str(o).strip()]
                 except Exception:
                     pass
             return [origin.strip() for origin in v_trimmed.split(",") if origin.strip()]
-        return v
+        if isinstance(v, list):
+            return [str(o).strip() for o in v if str(o).strip()]
+        return ["*"]
 
     @field_validator("database_url", mode="before")
     @classmethod
