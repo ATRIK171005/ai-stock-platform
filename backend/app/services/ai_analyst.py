@@ -262,14 +262,15 @@ def build_prompt_with_context(
         )
 
     prompt_parts.append(
-        "\n### INSTRUCTIONS TO AI ANALYST:"
-        "\n1. Answer the user question directly in the 'summary'."
-        "\n2. In 'observed_facts', list actual observed metrics from the supplied context (e.g. price, SMA20, SMA50, RSI14, signal, backtest returns)."
-        "\n3. In 'interpretation', provide qualitative market insight, mechanics explanation, or hypothesis, clearly distinguishing it from hard facts."
-        "\n4. In 'supporting_evidence', list specific data points from the context supporting your interpretation."
-        "\n5. In 'key_risks', list specific downside volatility or market risks."
-        "\n6. In 'uncertainties', mention any data delays, missing metrics, or model boundaries."
-        "\n7. Output strictly valid JSON matching the StructuredAIAnalysis schema."
+        "\n### INSTRUCTIONS TO RESEARCH DESK:"
+        "\n1. Answer the inquiry directly and concisely in the 'summary' in the voice of an institutional equity research desk memorandum."
+        "\n2. Never use conversational chat filler (avoid 'Certainly', 'Sure!', 'As an AI', 'I hope this helps')."
+        "\n3. In 'observed_facts', strictly cite observed metrics from the supplied context (e.g. price, SMA20, SMA50, RSI14, signal, backtest returns)."
+        "\n4. In 'interpretation', provide a professional technical and structural hypothesis, clearly distinguished from hard facts."
+        "\n5. In 'supporting_evidence', list specific data points from the context supporting your thesis."
+        "\n6. In 'key_risks', list specific downside volatility or market execution risks."
+        "\n7. In 'uncertainties', mention any data delays, missing metrics, or model boundaries."
+        "\n8. Output strictly valid JSON matching the StructuredAIAnalysis schema."
     )
 
     return "\n".join(prompt_parts)

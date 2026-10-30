@@ -11,9 +11,8 @@ import {
   ApiError,
 } from '../services/api';
 import {
-  Bot,
+  BrainCircuit,
   Send,
-  Sparkles,
   ShieldAlert,
   FileText,
   AlertTriangle,
@@ -23,7 +22,8 @@ import {
   RefreshCw,
   AlertCircle,
   ExternalLink,
-  HelpCircle,
+  BarChart2,
+  Info,
 } from 'lucide-react';
 
 interface AIAnalystPageProps {
@@ -70,7 +70,7 @@ export const AIAnalystPage: React.FC<AIAnalystPageProps> = ({
       id: 'msg-welcome',
       sender: 'assistant',
       timestamp: 'Today, Live Session',
-      text: `Hello! I am your AI Market Research Analyst for ${quote.symbol} (${quote.name}). I synthesize quantitative indicators, momentum setups, and backtest results into explainable insights. Ask me anything, or pick from the suggested research questions below.`,
+      text: `Research Desk initialized for ${quote.symbol} (${quote.name}). Historical indicator series, moving average structures, and algorithmic momentum factors are synchronized. Select a research question or enter custom inquiry parameters below.`,
       structuredReport: report,
     },
   ]);
@@ -92,11 +92,11 @@ export const AIAnalystPage: React.FC<AIAnalystPageProps> = ({
   }, [messages, isLoading]);
 
   const quickPrompts = [
-    `Explain the current technical indicators for ${quote.symbol}`,
-    `Why did the rule-based strategy generate this signal?`,
-    `What are the main risks shown by the current analysis?`,
-    `Explain what RSI, MACD, and ATR mean for this stock`,
-    `Summarize recent backtest performance and transaction costs`,
+    `Analyze multi-timeframe moving average structure & trend bias for ${quote.symbol}`,
+    `Evaluate momentum oscillators (RSI & MACD histogram divergence)`,
+    `Review key support/resistance levels & signal rationale`,
+    `Assess volatility bounds (ATR) & downside stop levels`,
+    `Summarize backtest trade distribution and transaction friction`,
   ];
 
   const handleSend = async (textToSend?: string) => {
@@ -190,7 +190,7 @@ export const AIAnalystPage: React.FC<AIAnalystPageProps> = ({
         id: `msg-${Date.now()}`,
         sender: 'assistant',
         timestamp: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }),
-        text: `Conversation cleared. I am ready to analyze ${quote.symbol} (${quote.name}). How can I assist with your quantitative research?`,
+        text: `Research session reset for ${quote.symbol} (${quote.name}). Historical indicator series and momentum factors synchronized. Enter inquiry parameters or select a query below.`,
       },
     ]);
     setErrorMessage(null);
@@ -200,45 +200,45 @@ export const AIAnalystPage: React.FC<AIAnalystPageProps> = ({
   return (
     <div className="space-y-6">
       {/* Header Banner */}
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl flex flex-wrap items-center justify-between gap-4">
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 sm:p-6 shadow-xl flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3.5">
-          <div className="w-12 h-12 rounded-xl bg-gradient-to-tr from-indigo-500 to-purple-600 flex items-center justify-center text-white shadow-lg shadow-indigo-500/25">
-            <Bot className="w-6 h-6" />
+          <div className="w-11 h-11 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-blue-400 shadow-sm">
+            <BrainCircuit className="w-6 h-6" />
           </div>
           <div>
             <div className="flex items-center gap-2.5">
               <h1 className="text-xl font-bold text-white tracking-tight">
-                AI Stock Research Analyst
+                Quantitative Research Desk
               </h1>
-              <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+              <span className="px-2 py-0.5 rounded text-[10px] font-mono font-semibold bg-slate-800 text-slate-300 border border-slate-700">
                 {activeModel}
               </span>
             </div>
             <p className="text-xs text-slate-400 mt-0.5">
-              Powered by {activeProvider}. Strictly separates factual observations from model hypotheses.
+              Institutional indicator breakdown, multi-factor momentum analysis, and algorithmic risk parameters.
             </p>
           </div>
         </div>
 
         {/* API Status & Action Badges */}
         <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-slate-800 border border-slate-700 text-xs text-slate-300">
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-xs text-slate-300">
             <Terminal className="w-3.5 h-3.5 text-blue-400" />
-            <span>Target Stock: <strong className="text-white">{quote.symbol}</strong></span>
+            <span>Target: <strong className="text-white font-mono">{quote.symbol}</strong></span>
           </div>
 
-          <div className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-slate-800 border border-slate-700 text-xs text-slate-300">
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-xs text-slate-300">
             <span className={`w-2 h-2 rounded-full ${isApiConnected ? 'bg-emerald-400' : 'bg-amber-400'}`}></span>
-            <span>{isApiConnected ? `${activeProvider} Ready` : 'Key Missing (.env)'}</span>
+            <span>{isApiConnected ? `${activeProvider} Online` : 'Engine Offline (.env)'}</span>
           </div>
 
           <button
             onClick={handleClearChat}
             title="Reset Conversation"
-            className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs text-slate-400 hover:text-slate-200 transition-colors cursor-pointer"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs text-slate-400 hover:text-slate-200 transition-colors cursor-pointer"
           >
             <RotateCcw className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Clear Chat</span>
+            <span className="hidden sm:inline">Reset Session</span>
           </button>
         </div>
       </div>
@@ -285,8 +285,8 @@ export const AIAnalystPage: React.FC<AIAnalystPageProps> = ({
                     msg.sender === 'user' ? 'items-end' : 'items-start'
                   }`}
                 >
-                  <div className="flex items-center gap-2 mb-1 text-[11px] text-slate-400">
-                    <span>{msg.sender === 'user' ? 'You' : 'AI Market Analyst'}</span>
+                  <div className="flex items-center gap-2 mb-1 text-[11px] text-slate-400 font-mono">
+                    <span className="font-semibold text-slate-300">{msg.sender === 'user' ? 'Trader' : 'Research Desk'}</span>
                     <span>•</span>
                     <span>{msg.timestamp}</span>
                   </div>
@@ -330,15 +330,15 @@ export const AIAnalystPage: React.FC<AIAnalystPageProps> = ({
                           {/* 1. Observed Factual Data */}
                           {Object.keys(msg.structuredAnalysis.observed_facts).length > 0 && (
                             <div className="bg-slate-950/70 border border-slate-800 rounded-xl p-3.5 space-y-2">
-                              <div className="flex items-center gap-2 text-blue-400 font-bold text-xs uppercase tracking-wider">
-                                <CheckCircle className="w-4 h-4" />
-                                <span>Observed Quantitative Facts (Non-Generative)</span>
+                              <div className="flex items-center gap-2 text-slate-200 font-bold text-xs uppercase tracking-wider">
+                                <BarChart2 className="w-4 h-4 text-blue-400" />
+                                <span>Observed Market Parameters</span>
                               </div>
                               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
                                 {Object.entries(msg.structuredAnalysis.observed_facts).map(([k, v]) => (
                                   <div key={k} className="bg-slate-900/90 p-2 rounded border border-slate-800 min-w-0 overflow-hidden" title={`${k}: ${v}`}>
                                     <span className="text-slate-400 block text-[10px] truncate">{k}</span>
-                                    <span className="font-bold text-slate-200 truncate block">
+                                    <span className="font-bold text-slate-200 truncate block font-mono">
                                       {typeof v === 'number'
                                         ? v % 1 !== 0
                                           ? v.toFixed(2)
@@ -353,10 +353,10 @@ export const AIAnalystPage: React.FC<AIAnalystPageProps> = ({
 
                           {/* 2. Qualitative Interpretation */}
                           {msg.structuredAnalysis.interpretation && (
-                            <div className="bg-slate-950/70 border border-indigo-900/40 rounded-xl p-3.5 space-y-2">
-                              <div className="flex items-center gap-2 text-indigo-400 font-bold text-xs uppercase tracking-wider">
-                                <Sparkles className="w-4 h-4" />
-                                <span>Model-Generated Interpretation (Hypothesis)</span>
+                            <div className="bg-slate-950/70 border border-slate-800 rounded-xl p-3.5 space-y-2">
+                              <div className="flex items-center gap-2 text-slate-200 font-bold text-xs uppercase tracking-wider">
+                                <FileText className="w-4 h-4 text-blue-400" />
+                                <span>Technical Thesis & Market Assessment</span>
                               </div>
                               <p className="text-slate-300 leading-relaxed text-xs whitespace-pre-line">
                                 {msg.structuredAnalysis.interpretation}
@@ -367,8 +367,8 @@ export const AIAnalystPage: React.FC<AIAnalystPageProps> = ({
                           {/* 3. Supporting Evidence */}
                           {msg.structuredAnalysis.supporting_evidence.length > 0 && (
                             <div className="space-y-1.5">
-                              <span className="font-bold text-slate-300 text-xs block">
-                                Supporting Factual Evidence
+                              <span className="font-bold text-slate-300 text-xs block uppercase tracking-wider text-[11px]">
+                                Key Evidence & Factors
                               </span>
                               <ul className="list-disc list-inside space-y-1 text-slate-300 text-[11px]">
                                 {msg.structuredAnalysis.supporting_evidence.map((ev, i) => (
@@ -381,8 +381,8 @@ export const AIAnalystPage: React.FC<AIAnalystPageProps> = ({
                           {/* 4. News Analysis if provided */}
                           {msg.structuredAnalysis.news_analysis && msg.structuredAnalysis.news_analysis.length > 0 && (
                             <div className="space-y-2">
-                              <span className="font-bold text-slate-300 text-xs block">
-                                Synthesized News & Market Events
+                              <span className="font-bold text-slate-300 text-xs block uppercase tracking-wider text-[11px]">
+                                Synthesized Market Events
                               </span>
                               <div className="space-y-2">
                                 {msg.structuredAnalysis.news_analysis.map((news, i) => (
@@ -422,7 +422,7 @@ export const AIAnalystPage: React.FC<AIAnalystPageProps> = ({
                                 <div className="bg-amber-950/20 border border-amber-900/40 rounded-xl p-3 space-y-1.5">
                                   <div className="flex items-center gap-1.5 text-amber-400 font-bold text-xs uppercase tracking-wider">
                                     <AlertTriangle className="w-3.5 h-3.5" />
-                                    <span>Key Downside Risks</span>
+                                    <span>Downside & Volatility Risks</span>
                                   </div>
                                   <ul className="list-disc list-inside space-y-1 text-slate-300 text-[11px]">
                                     {msg.structuredAnalysis.key_risks.map((risk, i) => (
@@ -435,8 +435,8 @@ export const AIAnalystPage: React.FC<AIAnalystPageProps> = ({
                               {msg.structuredAnalysis.uncertainties.length > 0 && (
                                 <div className="bg-slate-950/60 border border-slate-800 rounded-xl p-3 space-y-1.5">
                                   <div className="flex items-center gap-1.5 text-slate-400 font-bold text-xs uppercase tracking-wider">
-                                    <HelpCircle className="w-3.5 h-3.5" />
-                                    <span>Data Limitations & Uncertainties</span>
+                                    <Info className="w-3.5 h-3.5" />
+                                    <span>Market Data Notes & Constraints</span>
                                   </div>
                                   <ul className="list-disc list-inside space-y-1 text-slate-400 text-[11px]">
                                     {msg.structuredAnalysis.uncertainties.map((unc, i) => (
@@ -500,10 +500,10 @@ export const AIAnalystPage: React.FC<AIAnalystPageProps> = ({
                             </div>
                           </div>
 
-                          <div className="bg-slate-950/70 border border-indigo-900/40 rounded-xl p-3.5 space-y-2">
-                            <div className="flex items-center gap-2 text-indigo-400 font-bold text-xs uppercase tracking-wider">
-                              <Sparkles className="w-4 h-4" />
-                              <span>Model-Generated Interpretation</span>
+                          <div className="bg-slate-950/70 border border-slate-800 rounded-xl p-3.5 space-y-2">
+                            <div className="flex items-center gap-2 text-slate-200 font-bold text-xs uppercase tracking-wider">
+                              <FileText className="w-4 h-4 text-blue-400" />
+                              <span>Technical Thesis & Market Assessment</span>
                             </div>
                             <p className="text-slate-300 leading-relaxed text-xs">
                               {msg.structuredReport.interpretation.marketContext}
@@ -517,9 +517,9 @@ export const AIAnalystPage: React.FC<AIAnalystPageProps> = ({
               ))}
 
               {isLoading && (
-                <div className="flex items-center gap-2 text-xs text-indigo-400 py-3 px-2 bg-indigo-950/20 rounded-xl border border-indigo-900/30">
-                  <Sparkles className="w-4 h-4 animate-spin text-indigo-400" />
-                  <span>Synthesizing factual market context with {activeModel}...</span>
+                <div className="flex items-center gap-2.5 text-xs text-blue-400 py-3 px-3.5 bg-slate-950/80 rounded-xl border border-slate-800">
+                  <BrainCircuit className="w-4 h-4 animate-pulse text-blue-400" />
+                  <span className="font-mono">Compiling quantitative research note for {quote.symbol}...</span>
                 </div>
               )}
 
@@ -574,7 +574,7 @@ export const AIAnalystPage: React.FC<AIAnalystPageProps> = ({
                   disabled={isLoading}
                   maxLength={1000}
                   onChange={(e) => setInputQuery(e.target.value)}
-                  placeholder={`Ask a research question about ${quote.symbol} indicators, signals, or backtests...`}
+                  placeholder={`Inquire on technical setups, momentum indicators, or backtest metrics for ${quote.symbol}...`}
                   className="flex-1 bg-slate-800/90 border border-slate-700 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
                 />
                 <button

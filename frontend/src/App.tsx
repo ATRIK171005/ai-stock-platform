@@ -69,7 +69,7 @@ import {
   getStoredAccountId,
   setStoredAccountId,
 } from './services/api';
-import { ShieldAlert, AlertCircle, RefreshCw, Sparkles } from 'lucide-react';
+import { ShieldAlert, AlertCircle, RefreshCw, CheckCircle2 } from 'lucide-react';
 
 export function App() {
   const [activeTab, setActiveTab] = useState<NavTab>('overview');
@@ -522,9 +522,9 @@ export function App() {
 
       {/* Welcome & 1 Lakh Virtual Fund Credit Notification */}
       {welcomeBanner && (
-        <div className="bg-gradient-to-r from-emerald-500/20 via-blue-500/20 to-emerald-500/20 border-b border-emerald-500/30 px-4 py-2.5 text-xs text-emerald-300 flex items-center justify-between">
+        <div className="bg-slate-900 border-b border-emerald-500/30 px-4 py-2.5 text-xs text-emerald-300 flex items-center justify-between">
           <div className="max-w-7xl mx-auto flex items-center gap-2.5 w-full">
-            <Sparkles className="w-4 h-4 text-emerald-400 shrink-0" />
+            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
             <span className="font-semibold">{welcomeBanner}</span>
           </div>
           <button

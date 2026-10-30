@@ -74,7 +74,7 @@ class StructuredAIAnalysis(BaseModel):
         description="Timestamp of the underlying historical market data",
     )
     disclaimer: str = Field(
-        default="AI Market Analyst output is synthesized for simulation and quantitative research only. It does not constitute SEBI registered investment advice.",
+        default="Quantitative research memoranda and algorithmic synthesis are provided for simulation and educational research only. Does not constitute SEBI registered financial advice or trading recommendations.",
         description="Statutory non-advisory disclaimer",
     )
 

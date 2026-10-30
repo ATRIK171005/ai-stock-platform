@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import {
   LayoutDashboard,
   LineChart,
-  Bot,
+  BrainCircuit,
   History,
   Wallet,
   Settings,
@@ -83,7 +83,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   const navItems = [
     { id: 'overview' as NavTab, label: 'Overview', icon: LayoutDashboard },
     { id: 'analysis' as NavTab, label: 'Analysis', icon: LineChart },
-    { id: 'ai' as NavTab, label: 'AI Analyst', icon: Bot },
+    { id: 'ai' as NavTab, label: 'Quant Research', icon: BrainCircuit },
     { id: 'backtest' as NavTab, label: 'Backtest', icon: History },
     { id: 'doctor' as NavTab, label: 'Strategy Doctor', icon: Stethoscope },
     { id: 'paper' as NavTab, label: 'Paper Trading', icon: Wallet },
@@ -99,18 +99,31 @@ export const Navbar: React.FC<NavbarProps> = ({
       <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between h-16">
         {/* Brand & Market Identifier */}
         <div className="flex items-center gap-3">
-          <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/20 font-black text-lg">
-            AI
+          <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-slate-900 border border-slate-700/80 text-blue-400 shadow-sm">
+            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 20V10" />
+              <path d="M3 14h4" />
+              <path d="M7 20V4" />
+              <path d="M12 20v-8" />
+              <path d="M12 8h4" />
+              <path d="M16 20V6" />
+              <path d="M21 20v-5" />
+            </svg>
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="font-bold text-base text-slate-100 tracking-tight">MarketIQ</span>
+              <span className="font-extrabold text-base text-slate-100 tracking-tight font-mono">
+                MARKET<span className="text-blue-400">IQ</span>
+              </span>
+              <span className="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-slate-800 text-slate-300 border border-slate-700">
+                PRO
+              </span>
               <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-500/10 text-blue-400 border border-blue-500/20">
                 NSE/BSE
               </span>
             </div>
-            <p className="text-[10px] text-slate-400 hidden sm:block">
-              AI Quantitative Research Platform
+            <p className="text-[10px] text-slate-400 font-mono hidden sm:block">
+              INSTITUTIONAL QUANTITATIVE TERMINAL
             </p>
           </div>
         </div>

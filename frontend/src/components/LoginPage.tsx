@@ -11,12 +11,11 @@ import {
   ShieldCheck,
   IndianRupee,
   LineChart,
-  Bot,
+  BrainCircuit,
   Layers,
   ArrowRight,
   Eye,
   EyeOff,
-  Sparkles,
 } from 'lucide-react';
 import { loginUser, registerUser, loginDemoUser } from '../services/api';
 import type { AuthSessionResponse } from '../types';
@@ -142,17 +141,30 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onExploreG
       {/* Top Minimal Brand Bar */}
       <header className="border-b border-slate-800/80 bg-slate-900/50 backdrop-blur-md px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-cyan-500 text-white font-black text-xl shadow-lg shadow-blue-500/20">
-            AI
+          <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-slate-900 border border-slate-700/80 text-blue-400 shadow-sm">
+            <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 20V10" />
+              <path d="M3 14h4" />
+              <path d="M7 20V4" />
+              <path d="M12 20v-8" />
+              <path d="M12 8h4" />
+              <path d="M16 20V6" />
+              <path d="M21 20v-5" />
+            </svg>
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="font-extrabold text-lg text-slate-100 tracking-tight">MarketIQ</span>
+              <span className="font-extrabold text-lg text-slate-100 tracking-tight font-mono">
+                MARKET<span className="text-blue-400">IQ</span>
+              </span>
+              <span className="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-slate-800 text-slate-300 border border-slate-700">
+                PRO
+              </span>
               <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-500/10 text-blue-400 border border-blue-500/20 uppercase tracking-wider">
-                NSE/BSE Quantitative Terminal
+                NSE/BSE
               </span>
             </div>
-            <p className="text-xs text-slate-400">High-Frequency Trading & AI Equity Research</p>
+            <p className="text-xs text-slate-400 font-mono">INSTITUTIONAL QUANTITATIVE TERMINAL</p>
           </div>
         </div>
 
@@ -171,24 +183,24 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onExploreG
           {/* Left Column: Platform Showcase & Free ₹1 Lakh Currency Promotion */}
           <div className="lg:col-span-6 space-y-6">
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-semibold">
-              <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
-              <span>Free Quantitative Paper Trading • Zero Risk</span>
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Simulated Margin Sandbox • Zero Capital Risk</span>
             </div>
 
             <div className="space-y-3">
               <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-slate-100 tracking-tight leading-tight">
-                Trade Indian Stocks with{' '}
-                <span className="bg-gradient-to-r from-blue-400 via-indigo-400 to-cyan-400 bg-clip-text text-transparent">
-                  Institutional AI
+                Quantitative Research &{' '}
+                <span className="bg-gradient-to-r from-blue-400 via-indigo-300 to-cyan-300 bg-clip-text text-transparent">
+                  Execution Terminal
                 </span>
               </h1>
               <p className="text-sm sm:text-base text-slate-400 leading-relaxed">
-                Experience simulated high-frequency order book replay, deep technical indicator pipelines, and AI analyst reasoning calibrated for NSE/BSE equities.
+                Institutional-grade order book simulation, deep technical indicator pipelines, and algorithmic equity research calibrated for Indian equities (NSE/BSE).
               </p>
             </div>
 
             {/* Special Highlight Card: 1 Lakh Free Capital */}
-            <div className="p-5 rounded-2xl bg-gradient-to-br from-blue-900/30 via-slate-900/80 to-emerald-950/20 border border-emerald-500/30 shadow-xl shadow-emerald-500/5 relative overflow-hidden">
+            <div className="p-5 rounded-2xl bg-gradient-to-br from-blue-900/25 via-slate-900/80 to-emerald-950/20 border border-emerald-500/30 shadow-xl shadow-emerald-500/5 relative overflow-hidden">
               <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none" />
               <div className="flex items-start gap-4">
                 <div className="w-12 h-12 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 shrink-0 font-bold text-xl shadow-md shadow-emerald-500/20">
@@ -212,15 +224,15 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onExploreG
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
               <div className="flex items-center gap-2.5 p-3 rounded-xl bg-slate-900/60 border border-slate-800 text-xs text-slate-300">
                 <LineChart className="w-4 h-4 text-blue-400 shrink-0" />
-                <span>Real NSE/BSE Historical Quotes</span>
+                <span>Real NSE/BSE Exchange Quotes</span>
               </div>
               <div className="flex items-center gap-2.5 p-3 rounded-xl bg-slate-900/60 border border-slate-800 text-xs text-slate-300">
                 <Zap className="w-4 h-4 text-cyan-400 shrink-0" />
                 <span>HFT Microsecond Order Replay</span>
               </div>
               <div className="flex items-center gap-2.5 p-3 rounded-xl bg-slate-900/60 border border-slate-800 text-xs text-slate-300">
-                <Bot className="w-4 h-4 text-purple-400 shrink-0" />
-                <span>Groq LLaMA 3.3 70B AI Analyst</span>
+                <BrainCircuit className="w-4 h-4 text-purple-400 shrink-0" />
+                <span>Algorithmic Equity Research Notes</span>
               </div>
               <div className="flex items-center gap-2.5 p-3 rounded-xl bg-slate-900/60 border border-slate-800 text-xs text-slate-300">
                 <Layers className="w-4 h-4 text-emerald-400 shrink-0" />
