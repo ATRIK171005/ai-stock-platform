@@ -285,10 +285,11 @@ export const Navbar: React.FC<NavbarProps> = ({
             ) : (
               <button
                 onClick={onOpenAuth}
-                className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 text-white py-1.5 px-3 rounded-lg text-xs font-semibold shadow-sm transition-colors cursor-pointer"
+                className="flex items-center gap-1.5 bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-600 hover:from-blue-500 hover:to-indigo-500 text-white py-1.5 px-3 rounded-lg text-xs font-bold shadow-md shadow-blue-500/20 transition-all cursor-pointer"
+                title="Sign in or register to claim ₹1,00,000 virtual capital"
               >
                 <LogIn className="w-3.5 h-3.5" />
-                <span>Sign In</span>
+                <span>Sign In (₹1L Free)</span>
               </button>
             )}
           </div>

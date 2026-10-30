@@ -5,6 +5,7 @@ import { MarketTicker } from './components/MarketTicker';
 import { StockSearchModal } from './components/StockSearchModal';
 import { AuthModal } from './components/AuthModal';
 import { AddAccountModal } from './components/AddAccountModal';
+import { LoginPage } from './components/LoginPage';
 import { OverviewPage } from './pages/OverviewPage';
 import { AnalysisPage } from './pages/AnalysisPage';
 import { AIAnalystPage } from './pages/AIAnalystPage';
@@ -55,10 +56,11 @@ import {
   fetchCurrentUser,
   fetchUserAccounts,
   logoutUserSession,
+  getStoredAuthToken,
   getStoredAccountId,
   setStoredAccountId,
 } from './services/api';
-import { ShieldAlert, AlertCircle, RefreshCw } from 'lucide-react';
+import { ShieldAlert, AlertCircle, RefreshCw, Sparkles } from 'lucide-react';
 
 export function App() {
   const [activeTab, setActiveTab] = useState<NavTab>('overview');
@@ -85,6 +87,8 @@ export function App() {
 
   // User Authentication & Multi-Account States
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
+  const [isAuthPageView, setIsAuthPageView] = useState<boolean>(() => !getStoredAuthToken());
+  const [welcomeBanner, setWelcomeBanner] = useState<string | null>(null);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
   const [isAddAccountModalOpen, setIsAddAccountModalOpen] = useState<boolean>(false);
   const [activeAccountId, setActiveAccountId] = useState<string>(() => getStoredAccountId());
@@ -111,6 +115,7 @@ export function App() {
         const session = await fetchCurrentUser();
         if (isMounted && session) {
           setCurrentUser(session.user);
+          setIsAuthPageView(false);
           if (session.accounts && session.accounts.length > 0) {
             setUserAccounts(session.accounts);
             if (session.active_account_id) {
@@ -148,6 +153,11 @@ export function App() {
         setStoredAccountId(authData.active_account_id);
       }
     }
+    setIsAuthPageView(false);
+    setIsAuthModalOpen(false);
+    setWelcomeBanner(
+      `Welcome, ${authData.user.full_name || authData.user.username}! ₹1,00,000 (1 Lakh) virtual trading capital has been credited to your Primary Portfolio.`
+    );
   };
 
   const handleLogout = () => {
@@ -155,6 +165,8 @@ export function App() {
     setCurrentUser(null);
     setActiveAccountId('default_account');
     setStoredAccountId('default_account');
+    setIsAuthPageView(true);
+    setWelcomeBanner(null);
   };
 
   const handleAddAccountSuccess = (newAcc: UserAccountItem) => {
@@ -471,6 +483,15 @@ export function App() {
     ? 'FastAPI Backend Connected • Live Yahoo Finance Data (NSE/BSE, 15m Delayed)'
     : 'DEMO MODE: Simulated Sandbox Baseline (Backend Disconnected or Fallback)';
 
+  if (isAuthPageView) {
+    return (
+      <LoginPage
+        onLoginSuccess={handleAuthSuccess}
+        onExploreGuest={() => setIsAuthPageView(false)}
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-blue-600 selection:text-white">
       {/* Top Navbar with Real Search Modal Trigger */}
@@ -486,9 +507,25 @@ export function App() {
         activeAccountId={activeAccountId}
         onSelectAccount={handleSelectAccount}
         onOpenAddAccount={() => setIsAddAccountModalOpen(true)}
-        onOpenAuth={() => setIsAuthModalOpen(true)}
+        onOpenAuth={() => setIsAuthPageView(true)}
         onLogout={handleLogout}
       />
+
+      {/* Welcome & 1 Lakh Virtual Fund Credit Notification */}
+      {welcomeBanner && (
+        <div className="bg-gradient-to-r from-emerald-500/20 via-blue-500/20 to-emerald-500/20 border-b border-emerald-500/30 px-4 py-2.5 text-xs text-emerald-300 flex items-center justify-between">
+          <div className="max-w-7xl mx-auto flex items-center gap-2.5 w-full">
+            <Sparkles className="w-4 h-4 text-emerald-400 shrink-0" />
+            <span className="font-semibold">{welcomeBanner}</span>
+          </div>
+          <button
+            onClick={() => setWelcomeBanner(null)}
+            className="text-emerald-400 hover:text-white text-xs px-2 py-0.5 rounded cursor-pointer font-bold"
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       {/* Real-time Market Indices Ticker Bar */}
       <MarketTicker indices={SAMPLE_INDICES} dataSourceNotice={tickerNotice} />
